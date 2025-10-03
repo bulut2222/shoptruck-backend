@@ -47,13 +47,13 @@ app.get("/api/trendyol/orders", async (req, res) => {
     while (true) {
       console.log(`📦 Fetching page ${page}...`);
 
-      const response = await axios.get(
-        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
-        {
-          headers: AUTH_HEADER,
-          params: { startDate, endDate, page, size }
-        }
-      );
+     const response = await axios.get(
+  `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
+  {
+    headers: AUTH_HEADER,
+    params: { startDate, endDate, page, size, orderByCreatedDate: true }
+  }
+);
 
       const content = response.data?.content || [];
       console.log(`➡️ Sayfa ${page} sipariş: ${content.length}`);
