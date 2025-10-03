@@ -35,7 +35,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
     let allOrders = [];
     const DAY = 24 * 60 * 60 * 1000;
     const BLOCK = 30 * DAY;
-    const firstOrderDate = new Date("2022-01-01").getTime();
+    const firstOrderDate = new Date("2025-01-01").getTime();
     const now = Date.now();
 
     let startDate = firstOrderDate;
