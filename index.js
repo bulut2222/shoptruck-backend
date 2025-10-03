@@ -23,12 +23,13 @@ app.get("/", (req, res) => {
 });
 
 // ✅ Siparişler endpoint → TÜM GEÇMİŞ siparişleri çek
+// ✅ Siparişler endpoint → TÜM GEÇMİŞ siparişleri çek
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let allOrders = [];
     const DAY = 24 * 60 * 60 * 1000;
     const BLOCK = 30 * DAY; // Trendyol max 30 gün veriyor
-    const firstOrderDate = new Date("2022-01-01").getTime(); // mağazanın açılış tarihi
+    const firstOrderDate = new Date("2022-01-01").getTime(); 
     const now = Date.now();
 
     let startDate = firstOrderDate;
@@ -39,8 +40,6 @@ app.get("/api/trendyol/orders", async (req, res) => {
       const size = 50;
 
       while (true) {
-        console.log(`📦 Tarih aralığı: ${new Date(startDate).toISOString()} - ${new Date(endDate).toISOString()} | Sayfa ${page}`);
-
         const response = await axios.get(
           `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
           {
@@ -67,18 +66,21 @@ app.get("/api/trendyol/orders", async (req, res) => {
         if (content.length < size) break;
         page++;
       }
-
-      // sıradaki 30 gün bloğuna geç
       startDate = endDate + 1;
     }
 
-    // 🔑 Duplicate temizle
+    // 🔑 Duplicate temizle ama en YENİ orderDate’i bırak
     const uniqueOrders = Object.values(
       allOrders.reduce((acc, order) => {
-        acc[order.orderNumber] = order;
+        if (!acc[order.orderNumber] || acc[order.orderNumber].orderDate < order.orderDate) {
+          acc[order.orderNumber] = order;
+        }
         return acc;
       }, {})
     );
+
+    // 🔑 OrderDate DESC sıralama (yeni sipariş en üstte)
+    uniqueOrders.sort((a, b) => b.orderDate - a.orderDate);
 
     console.log(`✅ Toplam sipariş: ${uniqueOrders.length}`);
     res.json(uniqueOrders);
