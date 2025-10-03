@@ -56,19 +56,23 @@ app.get("/api/trendyol/orders", async (req, res) => {
         const content = response.data?.content || [];
         if (content.length === 0) break;
 
-        const simplified = content.map((order) => ({
-          orderNumber: order.orderNumber,
-          customerFirstName: order.customerFirstName,
-          customerLastName: order.customerLastName,
-          productName: order.lines?.[0]?.productName || "",
-          grossAmount: order.grossAmount,
-          status: order.status,
-          // 🔑 Tüm tarihleri al
-          orderDate: order.orderDate,
-          createdDate: order.createdDate,
-          shipmentCreatedDate: order.shipmentCreatedDate,
-          packageCreatedDate: order.packageCreatedDate
-        }));
+        const simplified = content.map((order) => {
+          // 🔍 DEBUG LOG → API'nin gönderdiği ham order objesi
+          console.log("📌 API RAW ORDER:", order);
+
+          return {
+            orderNumber: order.orderNumber,
+            customerFirstName: order.customerFirstName,
+            customerLastName: order.customerLastName,
+            productName: order.lines?.[0]?.productName || "",
+            grossAmount: order.grossAmount,
+            status: order.status,
+            orderDate: order.orderDate,
+            createdDate: order.createdDate,
+            shipmentCreatedDate: order.shipmentCreatedDate,
+            packageCreatedDate: order.packageCreatedDate
+          };
+        });
 
         allOrders = allOrders.concat(simplified);
 
