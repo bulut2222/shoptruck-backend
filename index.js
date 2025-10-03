@@ -22,16 +22,15 @@ app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
 
-// ✅ Siparişler endpoint → son 30 gün tüm siparişleri çek
+// ✅ Siparişler endpoint → TÜM GEÇMİŞ siparişler
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let { startDate, endDate } = req.query;
-    const now = Date.now();
 
-    // Eğer frontend’den tarih gelmezse → otomatik son 30 gün
+    // Eğer frontend’den tarih gelmezse → 2010 yılından bugüne kadar
     if (!startDate || !endDate) {
-      endDate = now;
-      startDate = now - (30 * 24 * 60 * 60 * 1000);
+      startDate = new Date("2010-01-01").getTime(); // çok eski bir tarih
+      endDate = Date.now(); // şu an
     }
 
     startDate = Number(startDate);
@@ -54,7 +53,6 @@ app.get("/api/trendyol/orders", async (req, res) => {
             page,
             size,
             orderByCreatedDate: true
-            // ❌ status parametresi kaldırıldı → tüm siparişler gelsin
           }
         }
       );
@@ -77,9 +75,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
 
       allOrders = allOrders.concat(simplified);
 
-      // eğer sayfa dolmadıysa (50’den azsa) → son sayfadayız
-      if (content.length < size) break;
-
+      if (content.length < size) break; // son sayfa
       page++;
     }
 
