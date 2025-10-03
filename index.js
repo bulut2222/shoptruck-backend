@@ -24,11 +24,15 @@ app.get("/", (req, res) => {
 // ✅ Siparişler endpoint → TÜM GEÇMİŞ siparişleri çek
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
+    let { all } = req.query;
     let allOrders = [];
     const DAY = 24 * 60 * 60 * 1000;
     const BLOCK = 30 * DAY;
-    const firstOrderDate = new Date("2022-01-01").getTime(); 
     const now = Date.now();
+
+    let firstOrderDate = all === "true" 
+      ? new Date("2022-01-01").getTime()
+      : now - (90 * DAY); // ✅ default: son 90 gün
 
     let startDate = firstOrderDate;
 
@@ -38,20 +42,9 @@ app.get("/api/trendyol/orders", async (req, res) => {
       const size = 50;
 
       while (true) {
-        console.log(`📦 Tarih: ${new Date(startDate).toISOString()} - ${new Date(endDate).toISOString()} | Sayfa ${page}`);
-
         const response = await axios.get(
           `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
-          {
-            headers: AUTH_HEADER,
-            params: { 
-              startDate, 
-              endDate, 
-              page, 
-              size, 
-              orderByCreatedDate: true 
-            }
-          }
+          { headers: AUTH_HEADER, params: { startDate, endDate, page, size, orderByCreatedDate: true } }
         );
 
         const content = response.data?.content || [];
@@ -73,28 +66,22 @@ app.get("/api/trendyol/orders", async (req, res) => {
         page++;
       }
 
-      // 🔑 sonraki bloğa geçerken overlap bırak → hiçbir gün kaybolmaz
       startDate = endDate - DAY;
     }
 
-    // 🔑 Duplicate temizle
-    const uniqueOrders = Object.values(
-      allOrders.reduce((acc, order) => {
-        acc[order.orderNumber] = order;
-        return acc;
-      }, {})
-    );
+    const uniqueOrders = Object.values(allOrders.reduce((acc, order) => {
+      acc[order.orderNumber] = order;
+      return acc;
+    }, {}));
 
-    // 🔑 Tarihe göre sırala (en yeni en üstte)
     uniqueOrders.sort((a, b) => b.orderDate - a.orderDate);
-
-    console.log(`✅ Toplam sipariş: ${uniqueOrders.length}`);
     res.json(uniqueOrders);
   } catch (error) {
-    console.error("Orders API Error:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).json(error.response?.data || { error: "Orders fetch failed" });
+    console.error("Orders API Error:", error.message);
+    res.status(500).json({ error: "Orders fetch failed" });
   }
 });
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend running at http://localhost:${PORT}`);
