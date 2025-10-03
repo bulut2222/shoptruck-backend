@@ -28,7 +28,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
     let allOrders = [];
     const DAY = 24 * 60 * 60 * 1000;
     const now = Date.now();
-    const startDate = now - 5 * DAY; // son 15 gün
+    const startDate = now - 45 * DAY; // son 15 gün
 
     let page = 0;
     const size = 50;
