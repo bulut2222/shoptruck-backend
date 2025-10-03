@@ -27,12 +27,12 @@ app.get("/api/trendyol/orders", async (req, res) => {
     let { all } = req.query;
     let allOrders = [];
     const DAY = 24 * 60 * 60 * 1000;
-    const BLOCK = 30 * DAY;
+    const BLOCK = 30 * DAY; // Trendyol max 30 gün
     const now = Date.now();
 
-    let firstOrderDate = all === "true" 
-      ? new Date("2022-01-01").getTime()
-      : now - (90 * DAY); // ✅ default: son 90 gün
+    let firstOrderDate = all === "true"
+      ? new Date("2022-01-01").getTime() // ✅ tüm siparişler
+      : now - (90 * DAY);                // ✅ default son 90 gün
 
     let startDate = firstOrderDate;
 
@@ -44,7 +44,10 @@ app.get("/api/trendyol/orders", async (req, res) => {
       while (true) {
         const response = await axios.get(
           `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
-          { headers: AUTH_HEADER, params: { startDate, endDate, page, size, orderByCreatedDate: true } }
+          {
+            headers: AUTH_HEADER,
+            params: { startDate, endDate, page, size, orderByCreatedDate: true }
+          }
         );
 
         const content = response.data?.content || [];
@@ -69,12 +72,14 @@ app.get("/api/trendyol/orders", async (req, res) => {
       startDate = endDate - DAY;
     }
 
-    const uniqueOrders = Object.values(allOrders.reduce((acc, order) => {
-      acc[order.orderNumber] = order;
-      return acc;
-    }, {}));
+    // Duplicate temizle + tarihe göre sırala
+    const uniqueOrders = Object.values(
+      allOrders.reduce((acc, order) => {
+        acc[order.orderNumber] = order;
+        return acc;
+      }, {})
+    ).sort((a, b) => b.orderDate - a.orderDate);
 
-    uniqueOrders.sort((a, b) => b.orderDate - a.orderDate);
     res.json(uniqueOrders);
   } catch (error) {
     console.error("Orders API Error:", error.message);
