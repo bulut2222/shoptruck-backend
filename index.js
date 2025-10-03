@@ -16,10 +16,15 @@ const token = Buffer.from(
 const AUTH_HEADER = {
   Authorization: `Basic ${token}`,
   "User-Agent": "Trendyol Integrator",
-  "Accept": "application/json"
+  Accept: "application/json"
 };
 
-// ✅ Root endpoint → test için
+// ✅ Tarih formatını timestamp’e çeviren helper
+function toTimestamp(dateStr) {
+  return new Date(dateStr).getTime();
+}
+
+// ✅ Root endpoint
 app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
@@ -27,7 +32,15 @@ app.get("/", (req, res) => {
 // ✅ Siparişler endpoint
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
-    const { startDate, endDate, page = 0, size = 20 } = req.query;
+    let { startDate, endDate, page = 0, size = 20 } = req.query;
+
+    // Eğer tarih string geldiyse → timestamp’e çevir
+    if (startDate && isNaN(startDate)) {
+      startDate = toTimestamp(startDate);
+    }
+    if (endDate && isNaN(endDate)) {
+      endDate = toTimestamp(endDate);
+    }
 
     const response = await axios.get(
       `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
@@ -37,12 +50,12 @@ app.get("/api/trendyol/orders", async (req, res) => {
       }
     );
 
-    // 🔥 Retrofit liste bekliyor → sadece content dizisini gönder
     res.json(response.data.content || []);
   } catch (error) {
     console.error("Orders API Error:", error.response?.data || error.message);
-    res.status(error.response?.status || 500)
-       .json(error.response?.data || { error: "Orders fetch failed" });
+    res
+      .status(error.response?.status || 500)
+      .json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
 
@@ -50,6 +63,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
 app.get("/api/trendyol/products", async (req, res) => {
   try {
     const { page = 0, size = 50, approved = true } = req.query;
+
     const response = await axios.get(
       `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/products`,
       {
@@ -58,15 +72,15 @@ app.get("/api/trendyol/products", async (req, res) => {
       }
     );
 
-    // 🔥 Retrofit liste bekliyor → sadece content dizisini gönder
     res.json(response.data.content || []);
   } catch (error) {
     console.error("Products API Error:", error.response?.data || error.message);
-    res.status(error.response?.status || 500)
-       .json(error.response?.data || { error: "Products fetch failed" });
+    res
+      .status(error.response?.status || 500)
+      .json(error.response?.data || { error: "Products fetch failed" });
   }
 });
 
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Backend running on port ${PORT}`);
+app.listen(PORT, () => {
+  console.log(`🚀 Backend running at http://localhost:${PORT}`);
 });
