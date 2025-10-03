@@ -19,19 +19,12 @@ const AUTH_HEADER = {
   Accept: "application/json"
 };
 
-// ✅ Tarih formatını timestamp’e çeviren helper
-function toTimestamp(dateStr) {
-  return new Date(dateStr).getTime();
-}
-
 // ✅ Root endpoint
 app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
 
 // ✅ Siparişler endpoint
-// ✅ Siparişler endpoint (Sadeleştirilmiş response)
-// ✅ Siparişler endpoint (Son 30 gün default)
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let { startDate, endDate, page = 0, size = 20 } = req.query;
@@ -39,11 +32,8 @@ app.get("/api/trendyol/orders", async (req, res) => {
     // Eğer tarih gelmezse → son 30 gün
     if (!startDate || !endDate) {
       const now = new Date();
-      endDate = now.getTime(); // Bugün
-      startDate = new Date(now.setDate(now.getDate() - 30)).getTime(); // 30 gün önce
-    } else {
-      if (isNaN(startDate)) startDate = toTimestamp(startDate);
-      if (isNaN(endDate)) endDate = toTimestamp(endDate);
+      endDate = now.getTime();
+      startDate = now.getTime() - (30 * 24 * 60 * 60 * 1000); // 30 gün önce
     }
 
     const response = await axios.get(
@@ -73,8 +63,6 @@ app.get("/api/trendyol/orders", async (req, res) => {
       .json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
-
-
 
 // ✅ Ürünler endpoint
 app.get("/api/trendyol/products", async (req, res) => {
