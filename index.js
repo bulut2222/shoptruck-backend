@@ -25,14 +25,12 @@ app.get("/", (req, res) => {
 // ✅ Siparişler endpoint → TÜM geçmişi çek (90 gün parçalar halinde)
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
-    // Eğer frontend’den tarih gelmezse → 2019'dan bugüne kadar tarasın
     let startDate = new Date("2019-01-01").getTime();
     let endDate = Date.now();
 
     let allOrders = [];
-
     const DAY = 24 * 60 * 60 * 1000;
-    const RANGE = 90 * DAY; // 90 gün aralık
+    const RANGE = 90 * DAY;
 
     while (startDate < endDate) {
       let rangeEnd = Math.min(startDate + RANGE, endDate);
@@ -57,8 +55,6 @@ app.get("/api/trendyol/orders", async (req, res) => {
         );
 
         const content = response.data?.content || [];
-        console.log(`➡️ ${content.length} sipariş bulundu`);
-
         if (content.length === 0) break;
 
         const simplified = content.map((order) => ({
@@ -77,12 +73,20 @@ app.get("/api/trendyol/orders", async (req, res) => {
         page++;
       }
 
-      // sıradaki tarih aralığına geç
-      startDate = rangeEnd + 1;
+      // 🔑 Buradaki kritik düzeltme:
+      startDate = rangeEnd; // artık +1 yok
     }
 
-    console.log(`✅ Toplam sipariş: ${allOrders.length}`);
-    res.json(allOrders);
+    // 🔑 Duplicate siparişleri temizle (aynı sipariş numarası sadece 1 kez kalsın)
+    const uniqueOrders = Object.values(
+      allOrders.reduce((acc, order) => {
+        acc[order.orderNumber] = order;
+        return acc;
+      }, {})
+    );
+
+    console.log(`✅ Toplam sipariş: ${uniqueOrders.length}`);
+    res.json(uniqueOrders);
   } catch (error) {
     console.error("Orders API Error:", error.response?.data || error.message);
     res.status(error.response?.status || 500).json(error.response?.data || { error: "Orders fetch failed" });
