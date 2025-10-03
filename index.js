@@ -29,17 +29,17 @@ app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
 
-// ✅ Siparişler endpoint
+// ✅ Siparişler endpoint → SON 15 GÜN
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let allOrders = [];
 
     const DAY = 24 * 60 * 60 * 1000;
-    const BLOCK = 7 * DAY; // her sorguda 7 günlük blok
+    const BLOCK = 3 * DAY; // her sorguda 3 günlük blok
     const now = Date.now();
 
-    // ✅ sadece son 30 gün
-    const firstOrderDate = now - 30 * DAY;
+    // ✅ sadece son 15 gün
+    const firstOrderDate = now - 15 * DAY;
     let startDate = firstOrderDate;
 
     while (startDate < now) {
