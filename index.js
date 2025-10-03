@@ -69,6 +69,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
 
 
 // ✅ Ürünler endpoint
+// ✅ Ürünler endpoint
 app.get("/api/trendyol/products", async (req, res) => {
   try {
     const { page = 0, size = 50, approved = true } = req.query;
@@ -81,7 +82,17 @@ app.get("/api/trendyol/products", async (req, res) => {
       }
     );
 
-    res.json(response.data.content || []);
+    // Gelen datayı sadeleştir, Product.java ile uyumlu hale getir
+    const simplified = (response.data.content || []).map((p) => ({
+      id: p.productId.toString(),
+      name: p.productName,
+      category: p.categoryName || "Genel",
+      price: p.listPrice?.value || 0,
+      stock: p.quantity || 0,
+      createdAt: new Date().getTime() // Trendyol JSON’da yok → fake timestamp
+    }));
+
+    res.json(simplified);
   } catch (error) {
     console.error("Products API Error:", error.response?.data || error.message);
     res
@@ -89,6 +100,7 @@ app.get("/api/trendyol/products", async (req, res) => {
       .json(error.response?.data || { error: "Products fetch failed" });
   }
 });
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend running at http://localhost:${PORT}`);
