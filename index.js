@@ -21,7 +21,7 @@ app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
 
-// ✅ Siparişler endpoint (sadece son 30 gün)
+// ✅ Siparişler endpoint (sadece son 30 gün + tüm sayfaları getirir)
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let allOrders = [];
@@ -29,9 +29,11 @@ app.get("/api/trendyol/orders", async (req, res) => {
     const now = Date.now();
     const startDate = now - (30 * DAY); // ✅ sadece son 30 gün
     const size = 50;
-    let page = 0;
 
+    let page = 0;
     while (true) {
+      console.log(`📦 Sayfa: ${page} (${new Date(startDate).toISOString()} - ${new Date(now).toISOString()})`);
+
       const response = await axios.get(
         `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
         {
@@ -41,7 +43,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
       );
 
       const content = response.data?.content || [];
-      if (content.length === 0) break;
+      if (content.length === 0) break; // ✅ başka sipariş yoksa çık
 
       const simplified = content.map((order) => ({
         orderNumber: order.orderNumber,
@@ -55,7 +57,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
 
       allOrders = allOrders.concat(simplified);
 
-      if (content.length < size) break;
+      if (content.length < size) break; // ✅ son sayfa geldi
       page++;
     }
 
@@ -67,6 +69,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
       }, {})
     ).sort((a, b) => b.orderDate - a.orderDate);
 
+    console.log(`✅ Toplam sipariş çekildi: ${uniqueOrders.length}`);
     res.json(uniqueOrders);
   } catch (error) {
     console.error("Orders API Error:", error.message);
