@@ -31,7 +31,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
     const now = Date.now();
 
     // ✅ sadece son 40 gün
-    let startDate = now - 40 * DAY;
+    let startDate = now - 45 * DAY;
 
     while (startDate < now) {
       let endDate = Math.min(startDate + BLOCK, now);
