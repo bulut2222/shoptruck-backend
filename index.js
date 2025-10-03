@@ -1,8 +1,9 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import axios from "axios";
-import dotenv from "dotenv";
 
-dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
@@ -17,6 +18,12 @@ const AUTH_HEADER = {
   Accept: "application/json"
 };
 
+// 🔍 Debug ENV ve Header
+console.log("🔑 Seller ID:", process.env.TRENDYOL_SELLER_ID);
+console.log("🔑 API KEY:", process.env.TRENDYOL_API_KEY);
+console.log("🔑 API SECRET:", process.env.TRENDYOL_API_SECRET);
+console.log("🔑 AUTH_HEADER:", AUTH_HEADER);
+
 // ✅ Root
 app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
@@ -27,8 +34,8 @@ app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let allOrders = [];
     const DAY = 24 * 60 * 60 * 1000;
-    const BLOCK = 30 * DAY; // Trendyol max 30 gün veriyor
-    const firstOrderDate = new Date("2022-01-01").getTime(); // mağazanın açılış tarihi
+    const BLOCK = 30 * DAY;
+    const firstOrderDate = new Date("2022-01-01").getTime();
     const now = Date.now();
 
     let startDate = firstOrderDate;
@@ -57,8 +64,8 @@ app.get("/api/trendyol/orders", async (req, res) => {
         if (content.length === 0) break;
 
         const simplified = content.map((order) => {
-          // 🔍 DEBUG LOG → API'nin gönderdiği ham order objesi
-          console.log("📌 API RAW ORDER:", order);
+          // 🔍 Ham JSON sipariş logu
+          console.log("📌 API RAW ORDER:", JSON.stringify(order, null, 2));
 
           return {
             orderNumber: order.orderNumber,
@@ -83,7 +90,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
       startDate = endDate + 1;
     }
 
-    // 🔑 Duplicate temizle + EN GÜNCEL tarihe göre sırala
+    // 🔑 Duplicate temizle + en güncel tarihe göre sırala
     const uniqueOrders = Object.values(
       allOrders.reduce((acc, order) => {
         acc[order.orderNumber] = order;
