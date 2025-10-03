@@ -14,7 +14,9 @@ const token = Buffer.from(
 ).toString("base64");
 
 const AUTH_HEADER = {
-  Authorization: `Basic ${token}`,
+  Authorization: `Basic ${Buffer.from(
+    `${process.env.TRENDYOL_API_KEY}:${process.env.TRENDYOL_API_SECRET}`
+  ).toString("base64")}`,
   "User-Agent": "ShopTruckApp",
   Accept: "application/json"
 };
