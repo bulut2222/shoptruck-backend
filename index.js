@@ -32,7 +32,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
 
     let firstOrderDate = all === "true"
       ? new Date("2022-01-01").getTime() // ✅ tüm siparişler
-      : now - (90 * DAY);                // ✅ default son 90 gün
+      : now - (40 * DAY);                // ✅ default son 90 gün
 
     let startDate = firstOrderDate;
 
