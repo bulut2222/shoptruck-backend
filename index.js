@@ -27,8 +27,8 @@ app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let allOrders = [];
     const DAY = 24 * 60 * 60 * 1000;
-    const BLOCK = 30 * DAY;
-    const firstOrderDate = new Date("2022-01-01").getTime();
+    const BLOCK = 30 * DAY; // Trendyol max 30 gün veriyor
+    const firstOrderDate = new Date("2022-01-01").getTime(); // mağazanın açılış tarihi
     const now = Date.now();
 
     let startDate = firstOrderDate;
@@ -54,7 +54,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
         );
 
         const content = response.data?.content || [];
-        if (content.length === 0) break; // ✅ sayfa boşsa çık
+        if (content.length === 0) break;
 
         const simplified = content.map((order) => ({
           orderNumber: order.orderNumber,
@@ -63,23 +63,43 @@ app.get("/api/trendyol/orders", async (req, res) => {
           productName: order.lines?.[0]?.productName || "",
           grossAmount: order.grossAmount,
           status: order.status,
-          orderDate: order.orderDate
+          // 🔑 Tüm tarihleri al
+          orderDate: order.orderDate,
+          createdDate: order.createdDate,
+          shipmentCreatedDate: order.shipmentCreatedDate,
+          packageCreatedDate: order.packageCreatedDate
         }));
 
         allOrders = allOrders.concat(simplified);
-        page++; // ✅ sonraki sayfaya geç
+
+        if (content.length < size) break;
+        page++;
       }
 
       startDate = endDate + 1;
     }
 
-    // 🔑 Duplicate temizle + sırala
+    // 🔑 Duplicate temizle + EN GÜNCEL tarihe göre sırala
     const uniqueOrders = Object.values(
       allOrders.reduce((acc, order) => {
         acc[order.orderNumber] = order;
         return acc;
       }, {})
-    ).sort((a, b) => b.orderDate - a.orderDate);
+    ).sort((a, b) => {
+      const dateA = Math.max(
+        a.orderDate || 0,
+        a.createdDate || 0,
+        a.shipmentCreatedDate || 0,
+        a.packageCreatedDate || 0
+      );
+      const dateB = Math.max(
+        b.orderDate || 0,
+        b.createdDate || 0,
+        b.shipmentCreatedDate || 0,
+        b.packageCreatedDate || 0
+      );
+      return dateB - dateA;
+    });
 
     console.log(`✅ Toplam sipariş: ${uniqueOrders.length}`);
     res.json(uniqueOrders);
@@ -88,6 +108,37 @@ app.get("/api/trendyol/orders", async (req, res) => {
     res
       .status(error.response?.status || 500)
       .json(error.response?.data || { error: "Orders fetch failed" });
+  }
+});
+
+// ✅ Ürünler endpoint
+app.get("/api/trendyol/products", async (req, res) => {
+  try {
+    const { page = 0, size = 50, approved = true } = req.query;
+
+    const response = await axios.get(
+      `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/products`,
+      {
+        headers: AUTH_HEADER,
+        params: { page, size, approved }
+      }
+    );
+
+    const simplified = (response.data.content || []).map((p) => ({
+      id: p.productId.toString(),
+      name: p.productName,
+      category: p.categoryName || "Genel",
+      price: p.listPrice?.value || 0,
+      stock: p.quantity || 0,
+      createdAt: new Date().getTime()
+    }));
+
+    res.json(simplified);
+  } catch (error) {
+    console.error("Products API Error:", error.response?.data || error.message);
+    res
+      .status(error.response?.status || 500)
+      .json(error.response?.data || { error: "Products fetch failed" });
   }
 });
 
