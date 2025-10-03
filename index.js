@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 8080;
 
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
 
-// 🔑 Auth bilgisi (Base64 encode)
+// 🔑 Auth bilgisi
 const AUTH_HEADER = {
   Authorization: `Basic ${Buffer.from(
     `${process.env.TRENDYOL_API_KEY}:${process.env.TRENDYOL_API_SECRET}`
@@ -22,101 +22,70 @@ app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
 
-// ✅ Siparişler endpoint → TÜM GEÇMİŞ siparişler
+// ✅ Siparişler endpoint → TÜM geçmişi çek (90 gün parçalar halinde)
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
-    let { startDate, endDate } = req.query;
-
-    // Eğer frontend’den tarih gelmezse → 2010 yılından bugüne kadar
-    if (!startDate || !endDate) {
-      startDate = new Date("2010-01-01").getTime(); // çok eski bir tarih
-      endDate = Date.now(); // şu an
-    }
-
-    startDate = Number(startDate);
-    endDate = Number(endDate);
+    // Eğer frontend’den tarih gelmezse → 2019'dan bugüne kadar tarasın
+    let startDate = new Date("2019-01-01").getTime();
+    let endDate = Date.now();
 
     let allOrders = [];
-    let page = 0;
-    const size = 50;
 
-    while (true) {
-      console.log(`📦 Fetching page ${page}...`);
+    const DAY = 24 * 60 * 60 * 1000;
+    const RANGE = 90 * DAY; // 90 gün aralık
 
-      const response = await axios.get(
-        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
-        {
-          headers: AUTH_HEADER,
-          params: {
-            startDate,
-            endDate,
-            page,
-            size,
-            orderByCreatedDate: true
+    while (startDate < endDate) {
+      let rangeEnd = Math.min(startDate + RANGE, endDate);
+      let page = 0;
+      const size = 50;
+
+      while (true) {
+        console.log(`📦 Tarih ${new Date(startDate).toISOString()} - ${new Date(rangeEnd).toISOString()} | Sayfa ${page}`);
+
+        const response = await axios.get(
+          `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
+          {
+            headers: AUTH_HEADER,
+            params: {
+              startDate,
+              endDate: rangeEnd,
+              page,
+              size,
+              orderByCreatedDate: true
+            }
           }
-        }
-      );
+        );
 
-      const content = response.data?.content || [];
-      console.log(`➡️ Sayfa ${page} sipariş: ${content.length}`);
+        const content = response.data?.content || [];
+        console.log(`➡️ ${content.length} sipariş bulundu`);
 
-      if (content.length === 0) break; // içerik yoksa çık
+        if (content.length === 0) break;
 
-      // sadeleştirme
-      const simplified = content.map((order) => ({
-        orderNumber: order.orderNumber,
-        customerFirstName: order.customerFirstName,
-        customerLastName: order.customerLastName,
-        productName: order.lines?.[0]?.productName || "",
-        grossAmount: order.grossAmount,
-        status: order.status,
-        orderDate: order.orderDate
-      }));
+        const simplified = content.map((order) => ({
+          orderNumber: order.orderNumber,
+          customerFirstName: order.customerFirstName,
+          customerLastName: order.customerLastName,
+          productName: order.lines?.[0]?.productName || "",
+          grossAmount: order.grossAmount,
+          status: order.status,
+          orderDate: order.orderDate
+        }));
 
-      allOrders = allOrders.concat(simplified);
+        allOrders = allOrders.concat(simplified);
 
-      if (content.length < size) break; // son sayfa
-      page++;
+        if (content.length < size) break;
+        page++;
+      }
+
+      // sıradaki tarih aralığına geç
+      startDate = rangeEnd + 1;
     }
 
     console.log(`✅ Toplam sipariş: ${allOrders.length}`);
     res.json(allOrders);
   } catch (error) {
     console.error("Orders API Error:", error.response?.data || error.message);
-    res
-      .status(error.response?.status || 500)
-      .json(error.response?.data || { error: "Orders fetch failed" });
-  }
-});
-
-// ✅ Ürünler endpoint
-app.get("/api/trendyol/products", async (req, res) => {
-  try {
-    const { page = 0, size = 50, approved = true } = req.query;
-
-    const response = await axios.get(
-      `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/products`,
-      {
-        headers: AUTH_HEADER,
-        params: { page, size, approved }
-      }
-    );
-
-    const simplified = (response.data.content || []).map((p) => ({
-      id: p.productId.toString(),
-      name: p.productName,
-      category: p.categoryName || "Genel",
-      price: p.listPrice?.value || 0,
-      stock: p.quantity || 0,
-      createdAt: new Date().getTime()
-    }));
-
-    res.json(simplified);
-  } catch (error) {
-    console.error("Products API Error:", error.response?.data || error.message);
-    res
-      .status(error.response?.status || 500)
-      .json(error.response?.data || { error: "Products fetch failed" });
+    res.status(error.response?.status || 500).json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
 
