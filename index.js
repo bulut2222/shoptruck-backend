@@ -26,6 +26,7 @@ app.get("/", (req, res) => {
 
 // ✅ Siparişler endpoint
 // ✅ Siparişler endpoint (tüm sayfaları çek)
+
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let { startDate, endDate } = req.query;
@@ -41,9 +42,11 @@ app.get("/api/trendyol/orders", async (req, res) => {
 
     let allOrders = [];
     let page = 0;
-    const size = 50; // ✅ 50 sipariş birden al (daha fazla için döngü)
+    const size = 50;
 
     while (true) {
+      console.log(`📦 Fetching page ${page}...`);
+
       const response = await axios.get(
         `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
         {
@@ -52,8 +55,10 @@ app.get("/api/trendyol/orders", async (req, res) => {
         }
       );
 
-      const content = response.data.content || [];
-      if (content.length === 0) break; // ✅ veri bitince çık
+      const content = response.data?.content || [];
+      console.log(`➡️ Sayfa ${page} sipariş: ${content.length}`);
+
+      if (content.length === 0) break;
 
       const simplified = content.map((order) => ({
         orderNumber: order.orderNumber,
@@ -67,11 +72,13 @@ app.get("/api/trendyol/orders", async (req, res) => {
 
       allOrders = allOrders.concat(simplified);
 
-      // Eğer son sayfaya geldiysek çık
-      if (page >= response.data.totalPages - 1) break;
+      // 🔴 content.length < size ise zaten son sayfadayız → break
+      if (content.length < size) break;
+
       page++;
     }
 
+    console.log(`✅ Toplam sipariş: ${allOrders.length}`);
     res.json(allOrders);
   } catch (error) {
     console.error("Orders API Error:", error.response?.data || error.message);
@@ -80,6 +87,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
       .json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
+
 
 
 
