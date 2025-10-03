@@ -56,7 +56,14 @@ app.get("/api/trendyol/orders", async (req, res) => {
           `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
           {
             headers: AUTH_HEADER,
-            params: { startDate, endDate, page, size, orderByCreatedDate: true }
+            params: { 
+              startDate, 
+              endDate, 
+              page, 
+              size, 
+              orderByCreatedDate: true,
+              status: "ALL" // 🔑 tüm siparişleri al
+            }
           }
         );
 
