@@ -9,10 +9,6 @@ const PORT = process.env.PORT || 8080;
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
 
 // 🔑 Auth bilgisi (Base64 encode)
-const token = Buffer.from(
-  `${process.env.TRENDYOL_API_KEY}:${process.env.TRENDYOL_API_SECRET}`
-).toString("base64");
-
 const AUTH_HEADER = {
   Authorization: `Basic ${Buffer.from(
     `${process.env.TRENDYOL_API_KEY}:${process.env.TRENDYOL_API_SECRET}`
@@ -52,13 +48,14 @@ app.get("/api/trendyol/orders", async (req, res) => {
         `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
         {
           headers: AUTH_HEADER,
-         params: {
-  startDate,
-  endDate,
-  page,
-  size,
-  orderByCreatedDate: true
-}
+          params: {
+            startDate,
+            endDate,
+            page,
+            size,
+            orderByCreatedDate: true
+            // ❌ status parametresi kaldırıldı → tüm siparişler gelsin
+          }
         }
       );
 
