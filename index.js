@@ -33,11 +33,13 @@ app.get("/", (req, res) => {
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let allOrders = [];
+
     const DAY = 24 * 60 * 60 * 1000;
-    const BLOCK = 30 * DAY;
-    const firstOrderDate = new Date("2025-06-06").getTime();
+    const BLOCK = 7 * DAY; // her sorguda 7 günlük blok
     const now = Date.now();
 
+    // ✅ sadece son 30 gün
+    const firstOrderDate = now - 30 * DAY;
     let startDate = firstOrderDate;
 
     while (startDate < now) {
@@ -56,13 +58,13 @@ app.get("/api/trendyol/orders", async (req, res) => {
           `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
           {
             headers: AUTH_HEADER,
-            params: { 
-              startDate, 
-              endDate, 
-              page, 
-              size, 
+            params: {
+              startDate,
+              endDate,
+              page,
+              size,
               orderByCreatedDate: true,
-              status: "ALL" // 🔑 tüm siparişleri al
+              status: "ALL" // 🔑 tüm statüler
             }
           }
         );
@@ -71,7 +73,6 @@ app.get("/api/trendyol/orders", async (req, res) => {
         if (content.length === 0) break;
 
         const simplified = content.map((order) => {
-          // 🔍 Ham JSON sipariş logu
           console.log("📌 API RAW ORDER:", JSON.stringify(order, null, 2));
 
           return {
