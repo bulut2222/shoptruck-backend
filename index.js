@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 8080;
 
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
 
+// 🔑 Auth
 const AUTH_HEADER = {
   Authorization: `Basic ${Buffer.from(
     `${process.env.TRENDYOL_API_KEY}:${process.env.TRENDYOL_API_SECRET}`
@@ -21,7 +22,7 @@ app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
 
-// ✅ Siparişler endpoint (Son 30 gün, tüm sayfaları getir)
+// ✅ Siparişler endpoint → Son 30 gün
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let allOrders = [];
@@ -29,8 +30,8 @@ app.get("/api/trendyol/orders", async (req, res) => {
     const now = Date.now();
     const startDate = now - (30 * DAY); // ✅ sadece son 30 gün
     const size = 50;
-
     let page = 0;
+
     while (true) {
       console.log(`📦 Sayfa: ${page} (${new Date(startDate).toISOString()} - ${new Date(now).toISOString()})`);
 
@@ -43,7 +44,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
       );
 
       const content = response.data?.content || [];
-      if (content.length === 0) break; // ✅ başka sipariş yoksa çık
+      if (content.length === 0) break; // ✅ sipariş yoksa çık
 
       const simplified = content.map((order) => ({
         orderNumber: order.orderNumber,
@@ -69,11 +70,11 @@ app.get("/api/trendyol/orders", async (req, res) => {
       }, {})
     ).sort((a, b) => b.orderDate - a.orderDate);
 
-    console.log(`✅ Toplam sipariş çekildi: ${uniqueOrders.length}`);
+    console.log(`✅ Toplam sipariş: ${uniqueOrders.length}`);
     res.json(uniqueOrders);
   } catch (error) {
     console.error("Orders API Error:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).json({ error: "Orders fetch failed" });
+    res.status(error.response?.status || 500).json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
 
