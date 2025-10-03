@@ -29,12 +29,16 @@ app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let { startDate, endDate, page = 0, size = 20 } = req.query;
 
-    // Eğer tarih gelmezse → son 30 gün
+    const now = Date.now();
+
     if (!startDate || !endDate) {
-      const now = new Date();
-      endDate = now.getTime();
-      startDate = now.getTime() - (30 * 24 * 60 * 60 * 1000); // 30 gün önce
+      endDate = now;
+      startDate = now - (30 * 24 * 60 * 60 * 1000); // son 30 gün
     }
+
+    // String geldiyse Number'a çevir
+    startDate = Number(startDate);
+    endDate = Number(endDate);
 
     const response = await axios.get(
       `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
@@ -44,7 +48,6 @@ app.get("/api/trendyol/orders", async (req, res) => {
       }
     );
 
-    // Sadeleştirilmiş response
     const simplified = (response.data.content || []).map((order) => ({
       orderNumber: order.orderNumber,
       customerFirstName: order.customerFirstName,
@@ -63,6 +66,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
       .json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
+
 
 // ✅ Ürünler endpoint
 app.get("/api/trendyol/products", async (req, res) => {
