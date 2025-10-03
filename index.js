@@ -30,11 +30,11 @@ app.get("/", (req, res) => {
 });
 
 // ✅ Siparişler endpoint
+// ✅ Siparişler endpoint (Sadeleştirilmiş response)
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let { startDate, endDate, page = 0, size = 20 } = req.query;
 
-    // Eğer tarih string geldiyse → timestamp’e çevir
     if (startDate && isNaN(startDate)) {
       startDate = toTimestamp(startDate);
     }
@@ -50,7 +50,17 @@ app.get("/api/trendyol/orders", async (req, res) => {
       }
     );
 
-    res.json(response.data.content || []);
+    // Gelen veriyi basitleştir
+    const simplified = (response.data.content || []).map((order) => ({
+      orderNumber: order.orderNumber,
+      customer: `${order.customerFirstName} ${order.customerLastName}`,
+      productName: order.lines?.[0]?.productName || "",
+      totalPrice: order.totalPrice,
+      status: order.status,
+      orderDate: order.orderDate,
+    }));
+
+    res.json(simplified);
   } catch (error) {
     console.error("Orders API Error:", error.response?.data || error.message);
     res
@@ -58,6 +68,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
       .json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
+
 
 // ✅ Ürünler endpoint
 app.get("/api/trendyol/products", async (req, res) => {
