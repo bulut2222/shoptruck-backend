@@ -19,6 +19,11 @@ const AUTH_HEADER = {
   "Accept": "application/json"
 };
 
+// ✅ Root endpoint → test için
+app.get("/", (req, res) => {
+  res.send("✅ ShopTruck Backend Çalışıyor 🚀");
+});
+
 // ✅ Siparişler endpoint
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
@@ -62,6 +67,6 @@ app.get("/api/trendyol/products", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Backend running at http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Backend running on port ${PORT}`);
 });
