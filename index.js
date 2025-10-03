@@ -21,58 +21,45 @@ app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
 
-// ✅ Siparişler endpoint → TÜM GEÇMİŞ siparişleri çek
+// ✅ Siparişler endpoint (sadece son 30 gün)
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
-    let { all } = req.query;
     let allOrders = [];
     const DAY = 24 * 60 * 60 * 1000;
-    const BLOCK = 30 * DAY; // Trendyol max 30 gün
     const now = Date.now();
+    const startDate = now - (30 * DAY); // ✅ sadece son 30 gün
+    const size = 50;
+    let page = 0;
 
-    let firstOrderDate = all === "true"
-      ? new Date("2022-01-01").getTime() // ✅ tüm siparişler
-      : now - (40 * DAY);                // ✅ default son 90 gün
+    while (true) {
+      const response = await axios.get(
+        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
+        {
+          headers: AUTH_HEADER,
+          params: { startDate, endDate: now, page, size, orderByCreatedDate: true }
+        }
+      );
 
-    let startDate = firstOrderDate;
+      const content = response.data?.content || [];
+      if (content.length === 0) break;
 
-    while (startDate <= now) {
-      let endDate = Math.min(startDate + BLOCK, now);
-      let page = 0;
-      const size = 50;
+      const simplified = content.map((order) => ({
+        orderNumber: order.orderNumber,
+        customerFirstName: order.customerFirstName,
+        customerLastName: order.customerLastName,
+        productName: order.lines?.[0]?.productName || "",
+        grossAmount: order.grossAmount,
+        status: order.status,
+        orderDate: order.orderDate
+      }));
 
-      while (true) {
-        const response = await axios.get(
-          `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
-          {
-            headers: AUTH_HEADER,
-            params: { startDate, endDate, page, size, orderByCreatedDate: true }
-          }
-        );
+      allOrders = allOrders.concat(simplified);
 
-        const content = response.data?.content || [];
-        if (content.length === 0) break;
-
-        const simplified = content.map((order) => ({
-          orderNumber: order.orderNumber,
-          customerFirstName: order.customerFirstName,
-          customerLastName: order.customerLastName,
-          productName: order.lines?.[0]?.productName || "",
-          grossAmount: order.grossAmount,
-          status: order.status,
-          orderDate: order.orderDate
-        }));
-
-        allOrders = allOrders.concat(simplified);
-
-        if (content.length < size) break;
-        page++;
-      }
-
-      startDate = endDate - DAY;
+      if (content.length < size) break;
+      page++;
     }
 
-    // Duplicate temizle + tarihe göre sırala
+    // 🔑 Duplicate temizle + tarihe göre sırala
     const uniqueOrders = Object.values(
       allOrders.reduce((acc, order) => {
         acc[order.orderNumber] = order;
@@ -86,7 +73,6 @@ app.get("/api/trendyol/orders", async (req, res) => {
     res.status(500).json({ error: "Orders fetch failed" });
   }
 });
-
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend running at http://localhost:${PORT}`);
