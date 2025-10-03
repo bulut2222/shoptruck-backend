@@ -21,7 +21,7 @@ app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
 
-// ✅ Siparişler endpoint (sadece son 30 gün + tüm sayfaları getirir)
+// ✅ Siparişler endpoint (Son 30 gün, tüm sayfaları getir)
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let allOrders = [];
@@ -57,7 +57,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
 
       allOrders = allOrders.concat(simplified);
 
-      if (content.length < size) break; // ✅ son sayfa geldi
+      if (content.length < size) break; // ✅ son sayfa
       page++;
     }
 
@@ -72,8 +72,8 @@ app.get("/api/trendyol/orders", async (req, res) => {
     console.log(`✅ Toplam sipariş çekildi: ${uniqueOrders.length}`);
     res.json(uniqueOrders);
   } catch (error) {
-    console.error("Orders API Error:", error.message);
-    res.status(500).json({ error: "Orders fetch failed" });
+    console.error("Orders API Error:", error.response?.data || error.message);
+    res.status(error.response?.status || 500).json({ error: "Orders fetch failed" });
   }
 });
 
