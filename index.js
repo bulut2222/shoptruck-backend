@@ -31,15 +31,19 @@ app.get("/", (req, res) => {
 
 // ✅ Siparişler endpoint
 // ✅ Siparişler endpoint (Sadeleştirilmiş response)
+// ✅ Siparişler endpoint (Son 30 gün default)
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let { startDate, endDate, page = 0, size = 20 } = req.query;
 
-    if (startDate && isNaN(startDate)) {
-      startDate = toTimestamp(startDate);
-    }
-    if (endDate && isNaN(endDate)) {
-      endDate = toTimestamp(endDate);
+    // Eğer tarih gelmezse → son 30 gün
+    if (!startDate || !endDate) {
+      const now = new Date();
+      endDate = now.getTime(); // Bugün
+      startDate = new Date(now.setDate(now.getDate() - 30)).getTime(); // 30 gün önce
+    } else {
+      if (isNaN(startDate)) startDate = toTimestamp(startDate);
+      if (isNaN(endDate)) endDate = toTimestamp(endDate);
     }
 
     const response = await axios.get(
@@ -50,12 +54,13 @@ app.get("/api/trendyol/orders", async (req, res) => {
       }
     );
 
-    // Gelen veriyi basitleştir
+    // Sadeleştirilmiş response
     const simplified = (response.data.content || []).map((order) => ({
       orderNumber: order.orderNumber,
-      customer: `${order.customerFirstName} ${order.customerLastName}`,
+      customerFirstName: order.customerFirstName,
+      customerLastName: order.customerLastName,
       productName: order.lines?.[0]?.productName || "",
-      totalPrice: order.totalPrice,
+      grossAmount: order.grossAmount,
       status: order.status,
       orderDate: order.orderDate,
     }));
@@ -68,6 +73,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
       .json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
+
 
 
 // ✅ Ürünler endpoint
