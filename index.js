@@ -58,7 +58,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
       const content = response.data?.content || [];
       console.log(`➡️ Sayfa ${page} sipariş: ${content.length}`);
 
-      if (content.length === 0) break;
+      if (content.length === 0) break; // içerik yoksa çık
 
       const simplified = content.map((order) => ({
         orderNumber: order.orderNumber,
@@ -72,7 +72,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
 
       allOrders = allOrders.concat(simplified);
 
-      // 🔴 content.length < size ise zaten son sayfadayız → break
+      // 🔴 Eğer gelen sipariş sayısı 50’den azsa → son sayfadayız
       if (content.length < size) break;
 
       page++;
@@ -87,6 +87,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
       .json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
+
 
 
 
