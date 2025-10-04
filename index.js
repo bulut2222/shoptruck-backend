@@ -8,23 +8,13 @@ const PORT = process.env.PORT || 8080;
 
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
 
-// 🔑 Auth: Sipariş
-const AUTH_ORDER = {
-  Authorization: `Basic ${Buffer.from(
-    `${process.env.TRENDYOL_ORDER_API_KEY}:${process.env.TRENDYOL_ORDER_API_SECRET}`
-  ).toString("base64")}`,
-  "User-Agent": "ShopTruckOrders",
+// Ortak header fonksiyonu (Authorization + SupplierId)
+const generateAuthHeaders = (apiKey, apiSecret, supplierId, agent) => ({
+  Authorization: `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString("base64")}`,
+  SupplierId: supplierId,
+  "User-Agent": agent,
   Accept: "application/json"
-};
-
-// 🔑 Auth: İade (claims)
-const AUTH_RETURN = {
-  Authorization: `Basic ${Buffer.from(
-    `${process.env.TRENDYOL_RETURN_API_KEY}:${process.env.TRENDYOL_RETURN_API_SECRET}`
-  ).toString("base64")}`,
-  "User-Agent": "ShopTruckReturn",
-  Accept: "application/json"
-};
+});
 
 // ✅ Root
 app.get("/", (req, res) => {
@@ -42,12 +32,25 @@ app.get("/api/trendyol/orders", async (req, res) => {
     let page = 0;
     const size = 50;
 
+    const headers = generateAuthHeaders(
+      process.env.TRENDYOL_ORDER_API_KEY,
+      process.env.TRENDYOL_ORDER_API_SECRET,
+      process.env.TRENDYOL_ORDER_SELLER_ID,
+      "ShopTruckOrders"
+    );
+
     while (true) {
       const response = await axios.get(
         `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`,
         {
-          headers: AUTH_ORDER,
-          params: { startDate, endDate: now, page, size, orderByCreatedDate: true }
+          headers,
+          params: {
+            startDate,
+            endDate: now,
+            page,
+            size,
+            orderByCreatedDate: true
+          }
         }
       );
 
@@ -77,8 +80,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
   }
 });
 
-// ✅ İadeler endpoint (claims)
-// ✅ İade endpoint (son 15 gün)
+// ✅ İadeler endpoint
 app.get("/api/trendyol/returns", async (req, res) => {
   try {
     let allReturns = [];
@@ -89,31 +91,37 @@ app.get("/api/trendyol/returns", async (req, res) => {
     let page = 0;
     const size = 50;
 
-    while (true) {
-      console.log(
-        `↩️ İade Tarih: ${new Date(startDate).toISOString()} - ${new Date(
-          now
-        ).toISOString()} | Sayfa ${page}`
-      );
+    const headers = generateAuthHeaders(
+      process.env.TRENDYOL_RETURN_API_KEY,
+      process.env.TRENDYOL_RETURN_API_SECRET,
+      process.env.TRENDYOL_RETURN_SELLER_ID,
+      "ShopTruckReturns"
+    );
 
+    while (true) {
       const response = await axios.get(
         `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/claims`,
         {
-          headers: AUTH_RETURN,
-          params: { startDate, endDate: now, page, size }
+          headers,
+          params: {
+            startDate,
+            endDate: now,
+            page,
+            size
+          }
         }
       );
 
       const content = response.data?.content || [];
       if (content.length === 0) break;
 
-      const simplified = content.map((ret) => ({
+      const simplified = content.map(ret => ({
         claimId: ret.claimId,
         orderNumber: ret.orderNumber,
         customerName: ret.customerName,
         reason: ret.reason,
         status: ret.claimItemStatus,
-        createdDate: ret.createdDate,
+        createdDate: ret.createdDate
       }));
 
       allReturns = allReturns.concat(simplified);
@@ -122,13 +130,10 @@ app.get("/api/trendyol/returns", async (req, res) => {
       page++;
     }
 
-    console.log(`✅ Toplam iadeler (son 15 gün): ${allReturns.length}`);
     res.json(allReturns);
   } catch (error) {
     console.error("Returns API Error:", error.response?.data || error.message);
-    res
-      .status(error.response?.status || 500)
-      .json(error.response?.data || { error: "Returns fetch failed" });
+    res.status(error.response?.status || 500).json(error.response?.data || { error: "Returns fetch failed" });
   }
 });
 
