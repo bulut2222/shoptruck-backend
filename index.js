@@ -93,9 +93,7 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
     const url = `https://api.trendyol.com/sapigw/suppliers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
     const response = await axios.get(url, {
       headers: {
-        Authorization: `Basic ${Buffer.from(
-          `${process.env.TRENDYOL_VENDOR_API_KEY}:${process.env.TRENDYOL_VENDOR_API_SECRET}`
-        ).toString("base64")}`,
+        Authorization: `Bearer ${process.env.TRENDYOL_VENDOR_TOKEN}`,
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         Accept: "application/json",
@@ -110,6 +108,7 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
       .json(error.response?.data || { error: "Vendor info fetch failed" });
   }
 });
+
 
 
 
