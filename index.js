@@ -1,4 +1,3 @@
-
 import express from "express";
 import axios from "axios";
 import dotenv from "dotenv";
@@ -9,10 +8,10 @@ const PORT = process.env.PORT || 8080;
 
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
 
-// 🔑 Auth
+// 🔑 Auth (Railway’de tanımladığın isimlere göre güncelledim)
 const AUTH_HEADER = {
   Authorization: `Basic ${Buffer.from(
-    `${process.env.TRENDYOL_API_KEY}:${process.env.TRENDYOL_API_SECRET}`
+    `${process.env.TRENDYOL_ORDER_API_KEY}:${process.env.TRENDYOL_ORDER_API_SECRET}`
   ).toString("base64")}`,
   "User-Agent": "ShopTruckApp",
   Accept: "application/json"
@@ -42,7 +41,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
       );
 
       const response = await axios.get(
-        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
+        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`,
         {
           headers: AUTH_HEADER,
           params: {
