@@ -17,6 +17,15 @@ const ORDER_HEADERS = {
   Accept: "application/json"
 };
 
+// ✅ Fatura için header
+const INVOICE_HEADERS = {
+  Authorization: `Basic ${Buffer.from(
+    `${process.env.TRENDYOL_INVOICE_API_KEY}:${process.env.TRENDYOL_INVOICE_API_SECRET}`
+  ).toString("base64")}`,
+  "User-Agent": "ShopTruckInvoice",
+  Accept: "application/json"
+};
+
 // ✅ Root
 app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
@@ -71,9 +80,24 @@ app.get("/api/trendyol/orders", async (req, res) => {
     res.json(allOrders);
   } catch (error) {
     console.error("Orders API Error:", error.response?.data || error.message);
-    res
-      .status(error.response?.status || 500)
-      .json(error.response?.data || { error: "Orders fetch failed" });
+    res.status(error.response?.status || 500).json(error.response?.data || { error: "Orders fetch failed" });
+  }
+});
+
+// ✅ Fatura endpoint (örnek)
+app.get("/api/trendyol/invoices", async (req, res) => {
+  try {
+    const response = await axios.get(
+      `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_INVOICE_SELLER_ID}/invoices`,
+      {
+        headers: INVOICE_HEADERS
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error("Invoice API Error:", error.response?.data || error.message);
+    res.status(error.response?.status || 500).json(error.response?.data || { error: "Invoices fetch failed" });
   }
 });
 
