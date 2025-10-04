@@ -43,7 +43,11 @@ app.get("/api/trendyol/orders", async (req, res) => {
     const size = 50;
 
     while (true) {
-      console.log(`📦 Tarih: ${new Date(startDate).toISOString()} - ${new Date(now).toISOString()} | Sayfa ${page}`);
+      console.log(
+        `📦 Sipariş Tarih: ${new Date(startDate).toISOString()} - ${new Date(
+          now
+        ).toISOString()} | Sayfa ${page}`
+      );
 
       const response = await axios.get(
         `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`,
@@ -56,14 +60,14 @@ app.get("/api/trendyol/orders", async (req, res) => {
       const content = response.data?.content || [];
       if (content.length === 0) break;
 
-      const simplified = content.map(order => ({
+      const simplified = content.map((order) => ({
         orderNumber: order.orderNumber,
         customerFirstName: order.customerFirstName,
         customerLastName: order.customerLastName,
         productName: order.lines?.[0]?.productName || "",
         grossAmount: order.grossAmount,
         status: order.status,
-        orderDate: order.orderDate
+        orderDate: order.orderDate,
       }));
 
       allOrders = allOrders.concat(simplified);
@@ -76,7 +80,9 @@ app.get("/api/trendyol/orders", async (req, res) => {
     res.json(allOrders);
   } catch (error) {
     console.error("Orders API Error:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).json(error.response?.data || { error: "Orders fetch failed" });
+    res
+      .status(error.response?.status || 500)
+      .json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
 
@@ -92,10 +98,14 @@ app.get("/api/trendyol/returns", async (req, res) => {
     const size = 50;
 
     while (true) {
-      console.log(`↩️ İade Tarih: ${new Date(startDate).toISOString()} - ${new Date(now).toISOString()} | Sayfa ${page}`);
+      console.log(
+        `↩️ İade Tarih: ${new Date(startDate).toISOString()} - ${new Date(
+          now
+        ).toISOString()} | Sayfa ${page}`
+      );
 
       const response = await axios.get(
-        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/returns`,
+        `${TRENDYOL_BASE_URL}/return-provider/${process.env.TRENDYOL_RETURN_SELLER_ID}/returns`,
         {
           headers: AUTH_RETURN,
           params: { startDate, endDate: now, page, size }
@@ -105,13 +115,13 @@ app.get("/api/trendyol/returns", async (req, res) => {
       const content = response.data?.content || [];
       if (content.length === 0) break;
 
-      const simplified = content.map(ret => ({
+      const simplified = content.map((ret) => ({
         returnId: ret.id,
         orderNumber: ret.orderNumber,
         customerName: ret.customerName,
         reason: ret.reason,
         status: ret.status,
-        createdDate: ret.createdDate
+        createdDate: ret.createdDate,
       }));
 
       allReturns = allReturns.concat(simplified);
@@ -124,7 +134,9 @@ app.get("/api/trendyol/returns", async (req, res) => {
     res.json(allReturns);
   } catch (error) {
     console.error("Returns API Error:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).json(error.response?.data || { error: "Returns fetch failed" });
+    res
+      .status(error.response?.status || 500)
+      .json(error.response?.data || { error: "Returns fetch failed" });
   }
 });
 
