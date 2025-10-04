@@ -109,30 +109,58 @@ app.get("/api/trendyol/invoices/:packageId", async (req, res) => {
 });
 
 // ✅ Fatura endpoint (invoiceNumber ile)
+// ✅ Fatura numarasına göre bul
 app.get("/api/trendyol/invoices/by-number/:invoiceNumber", async (req, res) => {
   try {
     const { invoiceNumber } = req.params;
 
-    const response = await axios.get(
-      `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_INVOICE_SELLER_ID}/invoices`,
+    // 1. Siparişleri çek
+    const DAY = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const startDate = now - 30 * DAY; // son 30 gün
+
+    const ordersResponse = await axios.get(
+      `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`,
       {
-        headers: INVOICE_HEADERS,
-        params: { invoiceNumber }  // 👈 burada query param
+        headers: ORDER_HEADERS,
+        params: { startDate, endDate: now, page: 0, size: 50, orderByCreatedDate: true }
       }
     );
 
-    if (!response.data || !response.data.length) {
-      return res.status(404).json({ error: "Fatura bulunamadı" });
+    const orders = ordersResponse.data?.content || [];
+
+    // 2. Tüm paketlerden fatura ara
+    for (let order of orders) {
+      const packageId = order?.shipmentPackageId ||
+                       order?.lines?.[0]?.shipmentPackageId ||
+                       (order?.packages && order?.packages[0]?.id);
+
+      if (!packageId) continue;
+
+      try {
+        const invoiceResp = await axios.get(
+          `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_INVOICE_SELLER_ID}/shipment-packages/${packageId}/invoices`,
+          { headers: INVOICE_HEADERS }
+        );
+
+        const invoices = invoiceResp.data || [];
+        const found = invoices.find(inv => inv.invoiceNumber === invoiceNumber);
+
+        if (found) {
+          return res.json(found); // ✅ doğru faturayı bulduk
+        }
+      } catch (err) {
+        console.error(`Invoice fetch error for package ${packageId}:`, err.message);
+      }
     }
 
-    res.json(response.data[0]); // ilk faturayı dönelim
+    res.status(404).json({ error: "Fatura bulunamadı" });
   } catch (error) {
     console.error("Invoice By Number API Error:", error.response?.data || error.message);
-    res
-      .status(error.response?.status || 500)
-      .json(error.response?.data || { error: "Invoice by number fetch failed" });
+    res.status(error.response?.status || 500).json(error.response?.data || { error: "Invoice by number fetch failed" });
   }
 });
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend running at http://localhost:${PORT}`);
