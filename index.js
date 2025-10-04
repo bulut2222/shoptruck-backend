@@ -68,6 +68,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
         grossAmount: order.grossAmount,
         status: order.status,
         orderDate: order.orderDate,
+        shipmentPackageId: order.lines?.[0]?.shipmentPackageId || null, // 👈 fatura için gerekli
       }));
 
       allOrders = allOrders.concat(simplified);
@@ -86,14 +87,14 @@ app.get("/api/trendyol/orders", async (req, res) => {
   }
 });
 
-// ✅ Faturalar endpoint
-app.get("/api/trendyol/invoices", async (req, res) => {
+// ✅ Fatura endpoint (packageId ile)
+app.get("/api/trendyol/invoices/:packageId", async (req, res) => {
   try {
+    const { packageId } = req.params;
+
     const response = await axios.get(
-      `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_INVOICE_SELLER_ID}/invoices`,
-      {
-        headers: INVOICE_HEADERS,
-      }
+      `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_INVOICE_SELLER_ID}/shipment-packages/${packageId}/invoices`,
+      { headers: INVOICE_HEADERS }
     );
 
     res.json(response.data);
