@@ -82,6 +82,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
 
 // ✅ İadeler endpoint
 // ✅ İadeler endpoint
+// ✅ İadeler endpoint (claims)
 app.get("/api/trendyol/returns", async (req, res) => {
   try {
     let allReturns = [];
@@ -92,18 +93,16 @@ app.get("/api/trendyol/returns", async (req, res) => {
     let page = 0;
     const size = 50;
 
-    const headers = {
-      Authorization: `Basic ${Buffer.from(
-        `${process.env.TRENDYOL_RETURN_API_KEY}:${process.env.TRENDYOL_RETURN_API_SECRET}`
-      ).toString("base64")}`,
-      SupplierId: process.env.TRENDYOL_RETURN_SELLER_ID,
-      "User-Agent": "ShopTruckReturns",
-      Accept: "application/json"
-    };
+    const headers = generateAuthHeaders(
+      process.env.TRENDYOL_RETURN_API_KEY,
+      process.env.TRENDYOL_RETURN_API_SECRET,
+      process.env.TRENDYOL_RETURN_SELLER_ID,
+      "ShopTruckReturns"
+    );
 
     while (true) {
       const response = await axios.get(
-        `${TRENDYOL_BASE_URL}/returns`,
+        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/claims`,
         {
           headers,
           params: { startDate, endDate: now, page, size }
@@ -136,6 +135,7 @@ app.get("/api/trendyol/returns", async (req, res) => {
       .json(error.response?.data || { error: "Returns fetch failed" });
   }
 });
+
 
 
 app.listen(PORT, () => {
