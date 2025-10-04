@@ -54,8 +54,13 @@ app.get("/api/trendyol/orders", async (req, res) => {
       const content = response.data?.content || [];
       if (content.length === 0) break;
 
-     const simplified = content.map((order) => {
-  const packageId = order?.shipmentPackageId || order?.lines?.[0]?.shipmentPackageId || null;
+    const simplified = content.map((order) => {
+  // Bazı durumlarda shipmentPackageId order.lines içinde değil, order.packages altında olur.
+  const packageId =
+    order?.shipmentPackageId ||
+    order?.lines?.[0]?.shipmentPackageId ||
+    (order?.packages && order?.packages[0]?.id) ||
+    null;
 
   return {
     orderNumber: order.orderNumber,
@@ -65,12 +70,13 @@ app.get("/api/trendyol/orders", async (req, res) => {
     grossAmount: order.grossAmount,
     status: order.status,
     orderDate: order.orderDate,
-    shipmentPackageId: packageId,   // 👈 artık geliyor
+    shipmentPackageId: packageId,  // 👈 artık kesin gelecek
     invoiceUrl: packageId
       ? `http://localhost:${PORT}/api/trendyol/invoices/${packageId}`
-      : null,                       // 👈 hazır link
+      : null,                      // 👈 hazır link
   };
 });
+
 
 
       allOrders = allOrders.concat(simplified);
