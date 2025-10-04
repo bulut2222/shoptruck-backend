@@ -85,7 +85,9 @@ app.get("/api/trendyol/orders", async (req, res) => {
     res.json(allOrders);
   } catch (error) {
     console.error("Orders API Error:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).json(error.response?.data || { error: "Orders fetch failed" });
+    res
+      .status(error.response?.status || 500)
+      .json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
 
@@ -97,15 +99,16 @@ app.get("/api/trendyol/invoices/:packageId", async (req, res) => {
       `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_INVOICE_SELLER_ID}/shipment-packages/${packageId}/invoices`,
       { headers: INVOICE_HEADERS }
     );
-
     res.json(response.data);
   } catch (error) {
     console.error("Invoice API Error:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).json(error.response?.data || { error: "Invoice fetch failed" });
+    res
+      .status(error.response?.status || 500)
+      .json(error.response?.data || { error: "Invoice fetch failed" });
   }
 });
 
-// ✅ Fatura endpoint (invoiceNumber ile arama)
+// ✅ Fatura endpoint (invoiceNumber ile)
 app.get("/api/trendyol/invoices/by-number/:invoiceNumber", async (req, res) => {
   try {
     const { invoiceNumber } = req.params;
@@ -114,14 +117,20 @@ app.get("/api/trendyol/invoices/by-number/:invoiceNumber", async (req, res) => {
       `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_INVOICE_SELLER_ID}/invoices`,
       {
         headers: INVOICE_HEADERS,
-        params: { invoiceNumber } // 👈 Trendyol API'ye numarayı gönderiyoruz
+        params: { invoiceNumber }  // 👈 burada query param
       }
     );
 
-    res.json(response.data);
+    if (!response.data || !response.data.length) {
+      return res.status(404).json({ error: "Fatura bulunamadı" });
+    }
+
+    res.json(response.data[0]); // ilk faturayı dönelim
   } catch (error) {
     console.error("Invoice By Number API Error:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).json(error.response?.data || { error: "Invoice by number fetch failed" });
+    res
+      .status(error.response?.status || 500)
+      .json(error.response?.data || { error: "Invoice by number fetch failed" });
   }
 });
 
