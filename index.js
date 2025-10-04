@@ -14,7 +14,7 @@ const ORDER_HEADERS = {
     `${process.env.TRENDYOL_ORDER_API_KEY}:${process.env.TRENDYOL_ORDER_API_SECRET}`
   ).toString("base64")}`,
   "User-Agent": "ShopTruckOrders",
-  Accept: "application/json"
+  Accept: "application/json",
 };
 
 // ✅ Fatura için header
@@ -23,7 +23,7 @@ const INVOICE_HEADERS = {
     `${process.env.TRENDYOL_INVOICE_API_KEY}:${process.env.TRENDYOL_INVOICE_API_SECRET}`
   ).toString("base64")}`,
   "User-Agent": "ShopTruckInvoice",
-  Accept: "application/json"
+  Accept: "application/json",
 };
 
 // ✅ Root
@@ -52,8 +52,8 @@ app.get("/api/trendyol/orders", async (req, res) => {
             endDate: now,
             page,
             size,
-            orderByCreatedDate: true
-          }
+            orderByCreatedDate: true,
+          },
         }
       );
 
@@ -67,7 +67,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
         productName: order.lines?.[0]?.productName || "",
         grossAmount: order.grossAmount,
         status: order.status,
-        orderDate: order.orderDate
+        orderDate: order.orderDate,
       }));
 
       allOrders = allOrders.concat(simplified);
@@ -80,24 +80,19 @@ app.get("/api/trendyol/orders", async (req, res) => {
     res.json(allOrders);
   } catch (error) {
     console.error("Orders API Error:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).json(error.response?.data || { error: "Orders fetch failed" });
+    res
+      .status(error.response?.status || 500)
+      .json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
 
-// ✅ Fatura endpoint (örnek)
 // ✅ Faturalar endpoint
 app.get("/api/trendyol/invoices", async (req, res) => {
   try {
     const response = await axios.get(
       `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_INVOICE_SELLER_ID}/invoices`,
       {
-        headers: {
-          Authorization: `Basic ${Buffer.from(
-            `${process.env.TRENDYOL_INVOICE_API_KEY}:${process.env.TRENDYOL_INVOICE_API_SECRET}`
-          ).toString("base64")}`,
-          "User-Agent": "ShopTruckInvoice",
-          Accept: "application/json"
-        }
+        headers: INVOICE_HEADERS,
       }
     );
 
@@ -109,7 +104,6 @@ app.get("/api/trendyol/invoices", async (req, res) => {
       .json(error.response?.data || { error: "Invoice fetch failed" });
   }
 });
-
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend running at http://localhost:${PORT}`);
