@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 8080;
 
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
 
-// Siparişler için header
+// ✅ Siparişler için header
 const ORDER_HEADERS = {
   Authorization: `Basic ${Buffer.from(
     `${process.env.TRENDYOL_ORDER_API_KEY}:${process.env.TRENDYOL_ORDER_API_SECRET}`
@@ -17,13 +17,14 @@ const ORDER_HEADERS = {
   Accept: "application/json"
 };
 
-// İadeler için header
+// ✅ İadeler için header (Token dahil!)
 const RETURN_HEADERS = {
   Authorization: `Basic ${Buffer.from(
     `${process.env.TRENDYOL_RETURN_API_KEY}:${process.env.TRENDYOL_RETURN_API_SECRET}`
   ).toString("base64")}`,
   "User-Agent": "ShopTruckReturns",
-  Accept: "application/json"
+  Accept: "application/json",
+  "X-Integration-Token": process.env.TRENDYOL_RETURN_TOKEN   // 🔑 Token buradan alınıyor
 };
 
 // ✅ Root
@@ -31,7 +32,7 @@ app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
 
-// ✅ Siparişler endpoint
+// ✅ Siparişler endpoint (son 15 gün)
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let allOrders = [];
@@ -83,7 +84,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
   }
 });
 
-// ✅ İadeler endpoint (Trendyol'da claims)
+// ✅ İadeler endpoint (claims)
 app.get("/api/trendyol/returns", async (req, res) => {
   try {
     let allReturns = [];
