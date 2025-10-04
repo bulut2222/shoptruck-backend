@@ -8,7 +8,7 @@ const PORT = process.env.PORT || 8080;
 
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
 
-// Ortak header fonksiyonu (Authorization + SupplierId)
+// Ortak header
 const generateAuthHeaders = (apiKey, apiSecret, supplierId, agent) => ({
   Authorization: `Basic ${Buffer.from(`${apiKey}:${apiSecret}`).toString("base64")}`,
   SupplierId: supplierId,
@@ -16,12 +16,12 @@ const generateAuthHeaders = (apiKey, apiSecret, supplierId, agent) => ({
   Accept: "application/json"
 });
 
-// ✅ Root
+// ✅ Test endpoint
 app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
 
-// ✅ Siparişler endpoint
+// ✅ Siparişler endpoint (orders)
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let allOrders = [];
@@ -40,13 +40,13 @@ app.get("/api/trendyol/orders", async (req, res) => {
     );
 
     while (true) {
-     const response = await axios.get(
-  `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/claims`,
-  {
-    headers,
-    params: { startDate, endDate: now, page, size }
-  }
-);
+      const response = await axios.get(
+        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`,
+        {
+          headers,
+          params: { startDate, endDate: now, page, size }
+        }
+      );
 
       const content = response.data?.content || [];
       if (content.length === 0) break;
@@ -74,8 +74,6 @@ app.get("/api/trendyol/orders", async (req, res) => {
   }
 });
 
-// ✅ İadeler endpoint
-// ✅ İadeler endpoint
 // ✅ İadeler endpoint (claims)
 app.get("/api/trendyol/returns", async (req, res) => {
   try {
@@ -96,12 +94,12 @@ app.get("/api/trendyol/returns", async (req, res) => {
 
     while (true) {
       const response = await axios.get(
-  `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/claims`,
-  {
-    headers,
-    params: { startDate, endDate: now, page, size }
-  }
-);
+        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/claims`,
+        {
+          headers,
+          params: { startDate, endDate: now, page, size }
+        }
+      );
 
       const content = response.data?.content || [];
       if (content.length === 0) break;
@@ -129,8 +127,6 @@ app.get("/api/trendyol/returns", async (req, res) => {
       .json(error.response?.data || { error: "Returns fetch failed" });
   }
 });
-
-
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend running at http://localhost:${PORT}`);
