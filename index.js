@@ -1,3 +1,4 @@
+
 import express from "express";
 import axios from "axios";
 import dotenv from "dotenv";
@@ -8,22 +9,13 @@ const PORT = process.env.PORT || 8080;
 
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
 
-// ✅ Siparişler için header
-const ORDER_HEADERS = {
+// 🔑 Auth
+const AUTH_HEADER = {
   Authorization: `Basic ${Buffer.from(
-    `${process.env.TRENDYOL_ORDER_API_KEY}:${process.env.TRENDYOL_ORDER_API_SECRET}`
+    `${process.env.TRENDYOL_API_KEY}:${process.env.TRENDYOL_API_SECRET}`
   ).toString("base64")}`,
-  "User-Agent": "ShopTruckOrders",
-  Accept: "application/json",
-};
-
-// ✅ Fatura için header
-const INVOICE_HEADERS = {
-  Authorization: `Basic ${Buffer.from(
-    `${process.env.TRENDYOL_INVOICE_API_KEY}:${process.env.TRENDYOL_INVOICE_API_SECRET}`
-  ).toString("base64")}`,
-  "User-Agent": "ShopTruckInvoice",
-  Accept: "application/json",
+  "User-Agent": "ShopTruckApp",
+  Accept: "application/json"
 };
 
 // ✅ Root
@@ -37,46 +29,47 @@ app.get("/api/trendyol/orders", async (req, res) => {
     let allOrders = [];
     const DAY = 24 * 60 * 60 * 1000;
     const now = Date.now();
-    const startDate = now - 15 * DAY;
+    const startDate = now - 15 * DAY; // son 15 gün
 
     let page = 0;
     const size = 50;
 
     while (true) {
+      console.log(
+        `📦 Tarih aralığı: ${new Date(startDate).toISOString()} - ${new Date(
+          now
+        ).toISOString()} | Sayfa ${page}`
+      );
+
       const response = await axios.get(
-        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`,
+        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
         {
-          headers: ORDER_HEADERS,
-          params: { startDate, endDate: now, page, size, orderByCreatedDate: true },
+          headers: AUTH_HEADER,
+          params: {
+            startDate: startDate,   // epoch ms
+            endDate: now,           // epoch ms
+            page,
+            size,
+            orderByCreatedDate: true
+          }
         }
       );
 
       const content = response.data?.content || [];
       if (content.length === 0) break;
 
-      const simplified = content.map((order) => {
-        const packageId =
-          order?.shipmentPackageId ||
-          order?.lines?.[0]?.shipmentPackageId ||
-          (order?.packages && order?.packages[0]?.id) ||
-          null;
-
-        return {
-          orderNumber: order.orderNumber,
-          customerFirstName: order.customerFirstName,
-          customerLastName: order.customerLastName,
-          productName: order.lines?.[0]?.productName || "",
-          grossAmount: order.grossAmount,
-          status: order.status,
-          orderDate: order.orderDate,
-          shipmentPackageId: packageId,
-          invoiceUrl: packageId
-            ? `http://localhost:${PORT}/api/trendyol/invoices/${packageId}`
-            : null,
-        };
-      });
+      const simplified = content.map((order) => ({
+        orderNumber: order.orderNumber,
+        customerFirstName: order.customerFirstName,
+        customerLastName: order.customerLastName,
+        productName: order.lines?.[0]?.productName || "",
+        grossAmount: order.grossAmount,
+        status: order.status,
+        orderDate: order.orderDate
+      }));
 
       allOrders = allOrders.concat(simplified);
+
       if (content.length < size) break;
       page++;
     }
@@ -90,77 +83,6 @@ app.get("/api/trendyol/orders", async (req, res) => {
       .json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
-
-// ✅ Fatura endpoint (shipmentPackageId ile)
-app.get("/api/trendyol/invoices/:packageId", async (req, res) => {
-  try {
-    const { packageId } = req.params;
-    const response = await axios.get(
-      `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_INVOICE_SELLER_ID}/shipment-packages/${packageId}/invoices`,
-      { headers: INVOICE_HEADERS }
-    );
-    res.json(response.data);
-  } catch (error) {
-    console.error("Invoice API Error:", error.response?.data || error.message);
-    res
-      .status(error.response?.status || 500)
-      .json(error.response?.data || { error: "Invoice fetch failed" });
-  }
-});
-
-// ✅ Fatura endpoint (invoiceNumber ile)
-// ✅ Fatura numarasına göre bul
-app.get("/api/trendyol/invoices/by-number/:invoiceNumber", async (req, res) => {
-  try {
-    const { invoiceNumber } = req.params;
-
-    // 1. Siparişleri çek
-    const DAY = 24 * 60 * 60 * 1000;
-    const now = Date.now();
-    const startDate = now - 30 * DAY; // son 30 gün
-
-    const ordersResponse = await axios.get(
-      `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`,
-      {
-        headers: ORDER_HEADERS,
-        params: { startDate, endDate: now, page: 0, size: 50, orderByCreatedDate: true }
-      }
-    );
-
-    const orders = ordersResponse.data?.content || [];
-
-    // 2. Tüm paketlerden fatura ara
-    for (let order of orders) {
-      const packageId = order?.shipmentPackageId ||
-                       order?.lines?.[0]?.shipmentPackageId ||
-                       (order?.packages && order?.packages[0]?.id);
-
-      if (!packageId) continue;
-
-      try {
-        const invoiceResp = await axios.get(
-          `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_INVOICE_SELLER_ID}/shipment-packages/${packageId}/invoices`,
-          { headers: INVOICE_HEADERS }
-        );
-
-        const invoices = invoiceResp.data || [];
-        const found = invoices.find(inv => inv.invoiceNumber === invoiceNumber);
-
-        if (found) {
-          return res.json(found); // ✅ doğru faturayı bulduk
-        }
-      } catch (err) {
-        console.error(`Invoice fetch error for package ${packageId}:`, err.message);
-      }
-    }
-
-    res.status(404).json({ error: "Fatura bulunamadı" });
-  } catch (error) {
-    console.error("Invoice By Number API Error:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).json(error.response?.data || { error: "Invoice by number fetch failed" });
-  }
-});
-
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend running at http://localhost:${PORT}`);
