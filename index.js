@@ -54,22 +54,24 @@ app.get("/api/trendyol/orders", async (req, res) => {
       const content = response.data?.content || [];
       if (content.length === 0) break;
 
-      const simplified = content.map((order) => {
-        const packageId = order?.shipmentPackageId || order?.lines?.[0]?.shipmentPackageId || null;
-        return {
-          orderNumber: order.orderNumber,
-          customerFirstName: order.customerFirstName,
-          customerLastName: order.customerLastName,
-          productName: order.lines?.[0]?.productName || "",
-          grossAmount: order.grossAmount,
-          status: order.status,
-          orderDate: order.orderDate,
-          shipmentPackageId: packageId,
-          invoiceUrl: packageId
-            ? `http://localhost:${PORT}/api/trendyol/invoices/${packageId}`
-            : null,
-        };
-      });
+     const simplified = content.map((order) => {
+  const packageId = order?.shipmentPackageId || order?.lines?.[0]?.shipmentPackageId || null;
+
+  return {
+    orderNumber: order.orderNumber,
+    customerFirstName: order.customerFirstName,
+    customerLastName: order.customerLastName,
+    productName: order.lines?.[0]?.productName || "",
+    grossAmount: order.grossAmount,
+    status: order.status,
+    orderDate: order.orderDate,
+    shipmentPackageId: packageId,   // 👈 artık geliyor
+    invoiceUrl: packageId
+      ? `http://localhost:${PORT}/api/trendyol/invoices/${packageId}`
+      : null,                       // 👈 hazır link
+  };
+});
+
 
       allOrders = allOrders.concat(simplified);
       if (content.length < size) break;
