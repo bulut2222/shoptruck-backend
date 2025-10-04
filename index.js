@@ -40,19 +40,13 @@ app.get("/api/trendyol/orders", async (req, res) => {
     );
 
     while (true) {
-      const response = await axios.get(
-        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`,
-        {
-          headers,
-          params: {
-            startDate,
-            endDate: now,
-            page,
-            size,
-            orderByCreatedDate: true
-          }
-        }
-      );
+     const response = await axios.get(
+  `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/claims`,
+  {
+    headers,
+    params: { startDate, endDate: now, page, size }
+  }
+);
 
       const content = response.data?.content || [];
       if (content.length === 0) break;
