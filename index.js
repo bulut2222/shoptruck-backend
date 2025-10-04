@@ -8,12 +8,21 @@ const PORT = process.env.PORT || 8080;
 
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
 
-// 🔑 Ortak Auth Header
-const AUTH_HEADER = {
+// Siparişler için header
+const ORDER_HEADERS = {
   Authorization: `Basic ${Buffer.from(
-    `${process.env.TRENDYOL_API_KEY}:${process.env.TRENDYOL_API_SECRET}`
+    `${process.env.TRENDYOL_ORDER_API_KEY}:${process.env.TRENDYOL_ORDER_API_SECRET}`
   ).toString("base64")}`,
-  "User-Agent": "ShopTruckApp",
+  "User-Agent": "ShopTruckOrders",
+  Accept: "application/json"
+};
+
+// İadeler için header
+const RETURN_HEADERS = {
+  Authorization: `Basic ${Buffer.from(
+    `${process.env.TRENDYOL_RETURN_API_KEY}:${process.env.TRENDYOL_RETURN_API_SECRET}`
+  ).toString("base64")}`,
+  "User-Agent": "ShopTruckReturns",
   Accept: "application/json"
 };
 
@@ -22,7 +31,7 @@ app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
 
-// ✅ Siparişler endpoint (orders)
+// ✅ Siparişler endpoint
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let allOrders = [];
@@ -35,10 +44,16 @@ app.get("/api/trendyol/orders", async (req, res) => {
 
     while (true) {
       const response = await axios.get(
-        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`,
+        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`,
         {
-          headers: AUTH_HEADER,
-          params: { startDate, endDate: now, page, size, orderByCreatedDate: true }
+          headers: ORDER_HEADERS,
+          params: {
+            startDate,
+            endDate: now,
+            page,
+            size,
+            orderByCreatedDate: true
+          }
         }
       );
 
@@ -68,7 +83,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
   }
 });
 
-// ✅ İadeler endpoint (claims)
+// ✅ İadeler endpoint (Trendyol'da claims)
 app.get("/api/trendyol/returns", async (req, res) => {
   try {
     let allReturns = [];
@@ -81,9 +96,9 @@ app.get("/api/trendyol/returns", async (req, res) => {
 
     while (true) {
       const response = await axios.get(
-        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/claims`,
+        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/claims`,
         {
-          headers: AUTH_HEADER,
+          headers: RETURN_HEADERS,
           params: { startDate, endDate: now, page, size }
         }
       );
