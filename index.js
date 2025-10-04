@@ -55,7 +55,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
       if (content.length === 0) break;
 
     const simplified = content.map((order) => {
-  // Bazı durumlarda shipmentPackageId order.lines içinde değil, order.packages altında olur.
+  // shipmentPackageId farklı yerlerde gelebilir → hepsini kontrol et
   const packageId =
     order?.shipmentPackageId ||
     order?.lines?.[0]?.shipmentPackageId ||
@@ -70,12 +70,16 @@ app.get("/api/trendyol/orders", async (req, res) => {
     grossAmount: order.grossAmount,
     status: order.status,
     orderDate: order.orderDate,
-    shipmentPackageId: packageId,  // 👈 artık kesin gelecek
+
+    // ✅ eklenen alanlar
+    shipmentPackageId: packageId,
     invoiceUrl: packageId
       ? `http://localhost:${PORT}/api/trendyol/invoices/${packageId}`
-      : null,                      // 👈 hazır link
+      : null,
+    rawData: order // 👈 debug için bütün siparişi görmek istersen
   };
 });
+
 
 
 
