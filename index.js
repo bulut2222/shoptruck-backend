@@ -17,16 +17,6 @@ const ORDER_HEADERS = {
   Accept: "application/json"
 };
 
-// ✅ İadeler için header (Token dahil!)
-const RETURN_HEADERS = {
-  Authorization: `Basic ${Buffer.from(
-    `${process.env.TRENDYOL_RETURN_API_KEY}:${process.env.TRENDYOL_RETURN_API_SECRET}`
-  ).toString("base64")}`,
-  "User-Agent": "ShopTruckReturns",
-  Accept: "application/json"
-};
-
-
 // ✅ Root
 app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
@@ -44,18 +34,24 @@ app.get("/api/trendyol/orders", async (req, res) => {
     const size = 50;
 
     while (true) {
-     const response = await axios.get(
-  `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/claims`,
-  {
-    headers: RETURN_HEADERS,
-    params: { startDate, endDate: now, page, size }
-  }
-);
+      const response = await axios.get(
+        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`,
+        {
+          headers: ORDER_HEADERS,
+          params: {
+            startDate,
+            endDate: now,
+            page,
+            size,
+            orderByCreatedDate: true
+          }
+        }
+      );
 
       const content = response.data?.content || [];
       if (content.length === 0) break;
 
-      const simplified = content.map(order => ({
+      const simplified = content.map((order) => ({
         orderNumber: order.orderNumber,
         customerFirstName: order.customerFirstName,
         customerLastName: order.customerLastName,
@@ -71,55 +67,13 @@ app.get("/api/trendyol/orders", async (req, res) => {
       page++;
     }
 
+    console.log(`✅ Toplam sipariş (son 15 gün): ${allOrders.length}`);
     res.json(allOrders);
   } catch (error) {
     console.error("Orders API Error:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).json(error.response?.data || { error: "Orders fetch failed" });
-  }
-});
-
-// ✅ İadeler endpoint (claims)
-app.get("/api/trendyol/returns", async (req, res) => {
-  try {
-    let allReturns = [];
-    const DAY = 24 * 60 * 60 * 1000;
-    const now = Date.now();
-    const startDate = now - 15 * DAY;
-
-    let page = 0;
-    const size = 50;
-
-    while (true) {
-      const response = await axios.get(
-        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/claims`,
-        {
-          headers: RETURN_HEADERS,
-          params: { startDate, endDate: now, page, size }
-        }
-      );
-
-      const content = response.data?.content || [];
-      if (content.length === 0) break;
-
-      const simplified = content.map(ret => ({
-        claimId: ret.claimId,
-        orderNumber: ret.orderNumber,
-        customerName: ret.customerName,
-        reason: ret.reason,
-        status: ret.claimItemStatus,
-        createdDate: ret.createdDate
-      }));
-
-      allReturns = allReturns.concat(simplified);
-
-      if (content.length < size) break;
-      page++;
-    }
-
-    res.json(allReturns);
-  } catch (error) {
-    console.error("Returns API Error:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).json(error.response?.data || { error: "Returns fetch failed" });
+    res
+      .status(error.response?.status || 500)
+      .json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
 
