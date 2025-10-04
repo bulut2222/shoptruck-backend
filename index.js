@@ -47,32 +47,31 @@ app.get("/api/trendyol/orders", async (req, res) => {
         `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`,
         {
           headers: ORDER_HEADERS,
-          params: {
-            startDate,
-            endDate: now,
-            page,
-            size,
-            orderByCreatedDate: true,
-          },
+          params: { startDate, endDate: now, page, size, orderByCreatedDate: true },
         }
       );
 
       const content = response.data?.content || [];
       if (content.length === 0) break;
 
-      const simplified = content.map((order) => ({
-        orderNumber: order.orderNumber,
-        customerFirstName: order.customerFirstName,
-        customerLastName: order.customerLastName,
-        productName: order.lines?.[0]?.productName || "",
-        grossAmount: order.grossAmount,
-        status: order.status,
-        orderDate: order.orderDate,
-        shipmentPackageId: order.lines?.[0]?.shipmentPackageId || null, // 👈 fatura için gerekli
-      }));
+      const simplified = content.map((order) => {
+        const packageId = order?.shipmentPackageId || order?.lines?.[0]?.shipmentPackageId || null;
+        return {
+          orderNumber: order.orderNumber,
+          customerFirstName: order.customerFirstName,
+          customerLastName: order.customerLastName,
+          productName: order.lines?.[0]?.productName || "",
+          grossAmount: order.grossAmount,
+          status: order.status,
+          orderDate: order.orderDate,
+          shipmentPackageId: packageId,
+          invoiceUrl: packageId
+            ? `http://localhost:${PORT}/api/trendyol/invoices/${packageId}`
+            : null,
+        };
+      });
 
       allOrders = allOrders.concat(simplified);
-
       if (content.length < size) break;
       page++;
     }
@@ -81,9 +80,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
     res.json(allOrders);
   } catch (error) {
     console.error("Orders API Error:", error.response?.data || error.message);
-    res
-      .status(error.response?.status || 500)
-      .json(error.response?.data || { error: "Orders fetch failed" });
+    res.status(error.response?.status || 500).json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
 
@@ -91,7 +88,6 @@ app.get("/api/trendyol/orders", async (req, res) => {
 app.get("/api/trendyol/invoices/:packageId", async (req, res) => {
   try {
     const { packageId } = req.params;
-
     const response = await axios.get(
       `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_INVOICE_SELLER_ID}/shipment-packages/${packageId}/invoices`,
       { headers: INVOICE_HEADERS }
@@ -100,9 +96,7 @@ app.get("/api/trendyol/invoices/:packageId", async (req, res) => {
     res.json(response.data);
   } catch (error) {
     console.error("Invoice API Error:", error.response?.data || error.message);
-    res
-      .status(error.response?.status || 500)
-      .json(error.response?.data || { error: "Invoice fetch failed" });
+    res.status(error.response?.status || 500).json(error.response?.data || { error: "Invoice fetch failed" });
   }
 });
 
