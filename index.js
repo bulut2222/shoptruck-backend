@@ -54,34 +54,27 @@ app.get("/api/trendyol/orders", async (req, res) => {
       const content = response.data?.content || [];
       if (content.length === 0) break;
 
-    const simplified = content.map((order) => {
-  // shipmentPackageId farklı yerlerde gelebilir → hepsini kontrol et
-  const packageId =
-    order?.shipmentPackageId ||
-    order?.lines?.[0]?.shipmentPackageId ||
-    (order?.packages && order?.packages[0]?.id) ||
-    null;
+      const simplified = content.map((order) => {
+        const packageId =
+          order?.shipmentPackageId ||
+          order?.lines?.[0]?.shipmentPackageId ||
+          (order?.packages && order?.packages[0]?.id) ||
+          null;
 
-  return {
-    orderNumber: order.orderNumber,
-    customerFirstName: order.customerFirstName,
-    customerLastName: order.customerLastName,
-    productName: order.lines?.[0]?.productName || "",
-    grossAmount: order.grossAmount,
-    status: order.status,
-    orderDate: order.orderDate,
-
-    // ✅ eklenen alanlar
-    shipmentPackageId: packageId,
-    invoiceUrl: packageId
-      ? `http://localhost:${PORT}/api/trendyol/invoices/${packageId}`
-      : null,
-    rawData: order // 👈 debug için bütün siparişi görmek istersen
-  };
-});
-
-
-
+        return {
+          orderNumber: order.orderNumber,
+          customerFirstName: order.customerFirstName,
+          customerLastName: order.customerLastName,
+          productName: order.lines?.[0]?.productName || "",
+          grossAmount: order.grossAmount,
+          status: order.status,
+          orderDate: order.orderDate,
+          shipmentPackageId: packageId,
+          invoiceUrl: packageId
+            ? `http://localhost:${PORT}/api/trendyol/invoices/${packageId}`
+            : null,
+        };
+      });
 
       allOrders = allOrders.concat(simplified);
       if (content.length < size) break;
@@ -96,7 +89,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
   }
 });
 
-// ✅ Fatura endpoint (packageId ile)
+// ✅ Fatura endpoint (shipmentPackageId ile)
 app.get("/api/trendyol/invoices/:packageId", async (req, res) => {
   try {
     const { packageId } = req.params;
@@ -109,6 +102,26 @@ app.get("/api/trendyol/invoices/:packageId", async (req, res) => {
   } catch (error) {
     console.error("Invoice API Error:", error.response?.data || error.message);
     res.status(error.response?.status || 500).json(error.response?.data || { error: "Invoice fetch failed" });
+  }
+});
+
+// ✅ Fatura endpoint (invoiceNumber ile arama)
+app.get("/api/trendyol/invoices/by-number/:invoiceNumber", async (req, res) => {
+  try {
+    const { invoiceNumber } = req.params;
+
+    const response = await axios.get(
+      `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_INVOICE_SELLER_ID}/invoices`,
+      {
+        headers: INVOICE_HEADERS,
+        params: { invoiceNumber } // 👈 Trendyol API'ye numarayı gönderiyoruz
+      }
+    );
+
+    res.json(response.data);
+  } catch (error) {
+    console.error("Invoice By Number API Error:", error.response?.data || error.message);
+    res.status(error.response?.status || 500).json(error.response?.data || { error: "Invoice by number fetch failed" });
   }
 });
 
