@@ -90,7 +90,8 @@ app.get("/api/trendyol/orders", async (req, res) => {
 // ✅ Vendor Info endpoint (Satıcı Bilgileri - adresler)
 app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   try {
-    const url = `https://api.trendyol.com/sapigw/suppliers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
+    const url = `https://api.trendyol.com/integration/sellers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
+
     const response = await axios.get(url, {
       headers: {
         Authorization: `Bearer ${process.env.TRENDYOL_VENDOR_TOKEN}`,
@@ -108,6 +109,7 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
       .json(error.response?.data || { error: "Vendor info fetch failed" });
   }
 });
+
 
 
 
