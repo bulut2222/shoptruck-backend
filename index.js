@@ -86,19 +86,12 @@ app.get("/api/trendyol/orders", async (req, res) => {
 });
 
 // ✅ Vendor Info endpoint (Satıcı Bilgileri - adresler)
-// ✅ Vendor Info endpoint (Satıcı Bilgileri - adresler)
-// ✅ Vendor Info endpoint (Satıcı Bilgileri - adresler)
 app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   try {
-    const url = `https://api.trendyol.com/integration/sellers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
+    const url = `${TRENDYOL_INT_BASE_URL}/integration/sellers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
 
     const response = await axios.get(url, {
-      headers: {
-        Authorization: `Bearer ${process.env.TRENDYOL_VENDOR_TOKEN}`,
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "application/json",
-      },
+      headers: VENDOR_AUTH_HEADER,
     });
 
     res.json(response.data);
@@ -109,10 +102,6 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
       .json(error.response?.data || { error: "Vendor info fetch failed" });
   }
 });
-
-
-
-
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend running at http://localhost:${PORT}`);
