@@ -23,9 +23,9 @@ const RETURN_HEADERS = {
     `${process.env.TRENDYOL_RETURN_API_KEY}:${process.env.TRENDYOL_RETURN_API_SECRET}`
   ).toString("base64")}`,
   "User-Agent": "ShopTruckReturns",
-  Accept: "application/json",
-  "X-Integration-Token": process.env.TRENDYOL_RETURN_TOKEN   // 🔑 Token buradan alınıyor
+  Accept: "application/json"
 };
+
 
 // ✅ Root
 app.get("/", (req, res) => {
@@ -44,19 +44,13 @@ app.get("/api/trendyol/orders", async (req, res) => {
     const size = 50;
 
     while (true) {
-      const response = await axios.get(
-        `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`,
-        {
-          headers: ORDER_HEADERS,
-          params: {
-            startDate,
-            endDate: now,
-            page,
-            size,
-            orderByCreatedDate: true
-          }
-        }
-      );
+     const response = await axios.get(
+  `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/claims`,
+  {
+    headers: RETURN_HEADERS,
+    params: { startDate, endDate: now, page, size }
+  }
+);
 
       const content = response.data?.content || [];
       if (content.length === 0) break;
