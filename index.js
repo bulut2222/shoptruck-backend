@@ -26,9 +26,10 @@ try {
   console.error("🛑 Firebase Admin başlatılamadı:", error.message);
 }
 
+// Firestore ref
 const db = admin.firestore();
 
-// ---------- Nodemailer ----------
+// ---------- Nodemailer (Gmail SMTP) ----------
 const mailer = nodemailer.createTransport({
   host: process.env.MAIL_HOST,
   port: Number(process.env.MAIL_PORT || 465),
@@ -70,42 +71,47 @@ const WEBHOOK_AUTH_HEADER = {
   Accept: "application/json",
 };
 
-const INVOICE_AUTH_HEADER = {
-  Authorization:
-    "Basic " +
-    Buffer.from(
-      `${process.env.TRENDYOL_INVOICE_API_KEY}:${process.env.TRENDYOL_INVOICE_API_SECRET}`
-    ).toString("base64"),
-  "User-Agent": "ShopTruckInvoice",
-  Accept: "application/json",
-};
-
-// ---------- Helper ----------
+// ---------- Helper: Order detayını Trendyol’dan çek ----------
 async function fetchOrderDetailsByNumber(orderNumber) {
+  // Trendyol Orders endpoint orderNumber filtresi destekliyor.
+  // Bazı hesaplarda orderNumber tek başına yetmezse tarihle de daraltırız (fallback).
   const DAY = 24 * 60 * 60 * 1000;
   const now = Date.now();
   const startDate = now - 15 * DAY;
 
   const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`;
-  const paramsPrimary = { orderNumber, page: 0, size: 50, orderByCreatedDate: true };
+  const paramsPrimary = {
+    orderNumber,
+    page: 0,
+    size: 50,
+    orderByCreatedDate: true,
+  };
 
+  // 1) Direkt orderNumber ile dene
   let r = await axios.get(url, { headers: ORDER_AUTH_HEADER, params: paramsPrimary });
   let content = r.data?.content || [];
   if (content.length > 0) return content[0];
 
-  const paramsFallback = { startDate, endDate: now, page: 0, size: 200 };
+  // 2) Fallback: son 15 güne bak, eşleşen orderNumber’ı bul
+  const paramsFallback = {
+    startDate,
+    endDate: now,
+    page: 0,
+    size: 200,
+    orderByCreatedDate: true,
+  };
   r = await axios.get(url, { headers: ORDER_AUTH_HEADER, params: paramsFallback });
   content = r.data?.content || [];
-  const found = content.find((o) => String(o.orderNumber) === String(orderNumber));
+  const found = content.find(o => String(o.orderNumber) === String(orderNumber));
   return found || null;
 }
 
 // ---------- Root ----------
 app.get("/", (req, res) => {
-  res.send("✅ ShopTruck Backend Aktif (Orders + Webhook + Invoice) 🚀");
+  res.send("✅ ShopTruck Backend Aktif (Railway + Firebase) 🚀");
 });
 
-// ---------- Siparişler ----------
+// ---------- Orders (listeleme örneği) ----------
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     const DAY = 24 * 60 * 60 * 1000;
@@ -116,7 +122,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
       `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`,
       {
         headers: ORDER_AUTH_HEADER,
-        params: { startDate, endDate: now, page: 0, size: 50 },
+        params: { startDate, endDate: now, page: 0, size: 50, orderByCreatedDate: true },
       }
     );
 
@@ -137,15 +143,15 @@ app.get("/api/trendyol/orders", async (req, res) => {
   }
 });
 
-// ---------- Fatura Entegrasyonu ----------
-app.get("/api/trendyol/invoices", async (req, res) => {
+// ---------- Vendor Info ----------
+app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   try {
-    const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_INVOICE_SELLER_ID}/invoices`;
-    const r = await axios.get(url, { headers: INVOICE_AUTH_HEADER });
+    const url = `${TRENDYOL_INT_BASE_URL}/integration/sellers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
+    const r = await axios.get(url, { headers: VENDOR_AUTH_HEADER });
     res.json(r.data);
   } catch (err) {
-    console.error("🛑 Invoice Fetch Error:", err.response?.data || err.message);
-    res.status(500).json({ error: "Invoice fetch failed" });
+    console.error("🛑 Vendor API Error:", err.response?.data || err.message);
+    res.status(500).json({ error: "Vendor info fetch failed" });
   }
 });
 
@@ -155,11 +161,13 @@ app.post("/api/trendyol/webhook", async (req, res) => {
     const payload = req.body || {};
     console.log("📩 Yeni Webhook Geldi:", JSON.stringify(payload, null, 2));
 
+    // 1) Order number’ı al
     const orderNumber =
       payload?.orderNumber ||
       payload?.data?.orderNumber ||
       payload?.data?.order?.orderNumber;
 
+    // 2) Trendyol’dan detayları çek (mümkünse)
     let orderDetail = null;
     if (orderNumber) {
       try {
@@ -169,39 +177,76 @@ app.post("/api/trendyol/webhook", async (req, res) => {
       }
     }
 
-    const doc = {
-      event: payload?.event || "UNKNOWN",
-      orderNumber: String(orderNumber || ""),
-      status: payload?.status || payload?.data?.status || orderDetail?.status || "",
-      timestamp: payload?.timestamp || new Date().toISOString(),
-      receivedAt: new Date().toISOString(),
-      customer:
-        (payload?.data?.customerFirstName && payload?.data?.customerLastName)
-          ? `${payload.data.customerFirstName} ${payload.data.customerLastName}`
-          : `${orderDetail?.customerFirstName || ""} ${orderDetail?.customerLastName || ""}`.trim(),
-      productName:
-        payload?.data?.productName || orderDetail?.lines?.[0]?.productName || "",
-      grossAmount:
-        payload?.data?.grossAmount || orderDetail?.grossAmount || 0,
-      raw: payload,
-    };
+    // 3) Firestore’a kaydet
+    // 3) Firestore’a kaydet
+const doc = {
+  event: payload?.event || "UNKNOWN",
+  orderNumber: String(orderNumber || ""),
+  status: payload?.status || payload?.data?.status || orderDetail?.status || "",
+  timestamp: payload?.timestamp || payload?.data?.timestamp || new Date().toISOString(),
+  receivedAt: new Date().toISOString(),
+
+  // 🔹 Postman’dan gelen data blok desteği eklendi
+  customerFirstName:
+    payload?.data?.customerFirstName || orderDetail?.customerFirstName || "",
+  customerLastName:
+    payload?.data?.customerLastName || orderDetail?.customerLastName || "",
+  customer:
+    (payload?.data?.customerFirstName && payload?.data?.customerLastName)
+      ? `${payload.data.customerFirstName} ${payload.data.customerLastName}`
+      : [orderDetail?.customerFirstName, orderDetail?.customerLastName].filter(Boolean).join(" "),
+
+  shippingAddress:
+    orderDetail?.shipmentAddress
+      ? `${orderDetail.shipmentAddress?.fullName || ""} ${orderDetail.shipmentAddress?.address1 || ""} ${orderDetail.shipmentAddress?.city || ""}`.trim()
+      : "",
+
+  productName:
+    payload?.data?.productName || orderDetail?.lines?.[0]?.productName || "",
+  grossAmount:
+    payload?.data?.grossAmount || orderDetail?.grossAmount || 0,
+  raw: payload,
+};
+
 
     await db.collection("WebhookLogs").add(doc);
 
-    const title = "📦 Yeni Trendyol Siparişi";
-    const body = `#${orderNumber}\n👤 ${doc.customer}\n🛍️ ${doc.productName}\n💰 ${doc.grossAmount}₺\nDurum: ${doc.status}`;
+    // 4) Push Bildirim (topic: trendyol)
+const title = "📦 Yeni Trendyol Siparişi";
+const body = `#${orderNumber || "N/A"}\n👤 ${doc.customer || "Bilinmiyor"}\n🛍️ ${doc.productName || "-"}\n💰 ${doc.grossAmount || 0}₺\nDurum: ${doc.status || "-"}`;
 
     await admin.messaging().send({
-      topic: "trendyol",
-      notification: { title, body },
-      data: {
-        orderNumber: String(orderNumber || ""),
-        status: String(doc.status || ""),
-        customer: String(doc.customer || "Bilinmiyor"),
-        productName: String(doc.productName || ""),
-        amount: String(doc.grossAmount || "0"),
-      },
-    });
+  topic: "trendyol",
+  notification: { title, body },
+  data: {
+    orderNumber: String(orderNumber || ""),
+    status: String(doc.status || ""),
+    customer: String(doc.customer || "Bilinmiyor"),
+    productName: String(doc.productName || ""),
+    amount: String(doc.grossAmount || "0"),
+  },
+});
+
+    // 5) E-posta gönder
+    try {
+      await mailer.sendMail({
+        from: process.env.MAIL_FROM || process.env.MAIL_USER,
+        to: "bulutkeles16@gmail.com",
+        subject: `Yeni Sipariş: #${orderNumber || "N/A"}`,
+        html: `
+          <h3>Yeni Sipariş Alındı</h3>
+          <p><b>Sipariş No:</b> ${orderNumber || "-"}</p>
+          <p><b>Durum:</b> ${doc.status || "-"}</p>
+          <p><b>Tarih:</b> ${new Date(doc.timestamp).toLocaleString("tr-TR")}</p>
+          <hr/>
+          <p><b>Müşteri:</b> ${doc.customer || "-"}</p>
+          <p><b>Ürün:</b> ${doc.productName || "-"}</p>
+          <p><b>Tutar:</b> ${doc.grossAmount ?? "-"}</p>
+        `,
+      });
+    } catch (e) {
+      console.warn("⚠️ E-posta gönderilemedi:", e.message);
+    }
 
     res.json({ success: true });
   } catch (err) {
@@ -210,7 +255,21 @@ app.post("/api/trendyol/webhook", async (req, res) => {
   }
 });
 
+// ---------- Webhook Status ----------
+app.get("/api/trendyol/webhook/status", async (req, res) => {
+  try {
+    const r = await axios.get(
+      `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_WEBHOOK_SELLER_ID}/webhooks`,
+      { headers: WEBHOOK_AUTH_HEADER }
+    );
+    res.json(r.data);
+  } catch (err) {
+    console.error("🛑 Webhook Status Error:", err.response?.data || err.message);
+    res.status(500).json({ error: "Webhook status fetch failed" });
+  }
+});
+
 // ---------- SERVER ----------
 app.listen(PORT, () => {
   console.log(`🚀 Backend aktif: http://localhost:${PORT}`);
-});
+}); 
