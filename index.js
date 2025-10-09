@@ -178,31 +178,43 @@ app.post("/api/trendyol/webhook", async (req, res) => {
     }
 
     // 3) Firestore’a kaydet
-    const doc = {
-      event: payload?.event || "UNKNOWN",
-      orderNumber: String(orderNumber || ""),
-      status: payload?.status || payload?.data?.status || orderDetail?.status || "",
-      timestamp: payload?.timestamp || payload?.data?.timestamp || new Date().toISOString(),
-      receivedAt: new Date().toISOString(),
+    // 3) Firestore’a kaydet
+const doc = {
+  event: payload?.event || "UNKNOWN",
+  orderNumber: String(orderNumber || ""),
+  status: payload?.status || payload?.data?.status || orderDetail?.status || "",
+  timestamp: payload?.timestamp || payload?.data?.timestamp || new Date().toISOString(),
+  receivedAt: new Date().toISOString(),
 
-      // Zenginleştirilmiş alanlar (varsa):
-      customerFirstName: orderDetail?.customerFirstName || "",
-      customerLastName: orderDetail?.customerLastName || "",
-      customer: [orderDetail?.customerFirstName, orderDetail?.customerLastName].filter(Boolean).join(" "),
-      shippingAddress:
-        orderDetail?.shipmentAddress
-          ? `${orderDetail.shipmentAddress?.fullName || ""} ${orderDetail.shipmentAddress?.address1 || ""} ${orderDetail.shipmentAddress?.city || ""}`.trim()
-          : "",
-      productName: orderDetail?.lines?.[0]?.productName || "",
-      grossAmount: orderDetail?.grossAmount || null,
-      raw: payload,
-    };
+  // 🔹 Postman’dan gelen data blok desteği eklendi
+  customerFirstName:
+    payload?.data?.customerFirstName || orderDetail?.customerFirstName || "",
+  customerLastName:
+    payload?.data?.customerLastName || orderDetail?.customerLastName || "",
+  customer:
+    (payload?.data?.customerFirstName && payload?.data?.customerLastName)
+      ? `${payload.data.customerFirstName} ${payload.data.customerLastName}`
+      : [orderDetail?.customerFirstName, orderDetail?.customerLastName].filter(Boolean).join(" "),
+
+  shippingAddress:
+    orderDetail?.shipmentAddress
+      ? `${orderDetail.shipmentAddress?.fullName || ""} ${orderDetail.shipmentAddress?.address1 || ""} ${orderDetail.shipmentAddress?.city || ""}`.trim()
+      : "",
+
+  productName:
+    payload?.data?.productName || orderDetail?.lines?.[0]?.productName || "",
+  grossAmount:
+    payload?.data?.grossAmount || orderDetail?.grossAmount || 0,
+  raw: payload,
+};
+
 
     await db.collection("WebhookLogs").add(doc);
 
     // 4) Push Bildirim (topic: trendyol)
-    const title = "Yeni Trendyol Siparişi";
-    const body = `#${orderNumber || "N/A"} - ${doc.status || ""}`;
+const title = "📦 Yeni Trendyol Siparişi";
+const body = `#${orderNumber || "N/A"}\n👤 ${doc.customer || "Bilinmiyor"}\n🛍️ ${doc.productName || "-"}\n💰 ${doc.grossAmount || 0}₺\nDurum: ${doc.status || "-"}`;
+
     await admin.messaging().send({
   topic: "trendyol",
   notification: { title, body },
