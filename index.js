@@ -109,24 +109,24 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   }
 });
 
-// ✅ Returns endpoint (İade İşlemleri - ScraperAPI destekli)
+// ✅ Returns endpoint (İade İşlemleri - GÜNCELLENDİ)
 app.get("/api/trendyol/returns", async (req, res) => {
   try {
-    const originalUrl = `https://api.trendyol.com/sapigw/return/v2/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/returns?page=0&size=10`;
+    // ⚙️ Yeni doğru endpoint (Artık /return/v2 yok!)
+    const trendyolUrl = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/returns?page=0&size=10`;
 
-    const scraperUrl = `https://api.scraperapi.com/?api_key=${process.env.SCRAPERAPI_KEY}&url=${encodeURIComponent(originalUrl)}`;
+    // ScraperAPI ile Trendyol'a proxy üzerinden bağlan
+    const scraperUrl = `https://api.scraperapi.com?api_key=${process.env.SCRAPERAPI_KEY}&url=${encodeURIComponent(trendyolUrl)}`;
 
     const response = await axios.get(scraperUrl, {
-      headers: {
-        Authorization: `Basic ${Buffer.from(
-          `${process.env.TRENDYOL_RETURN_API_KEY}:${process.env.TRENDYOL_RETURN_API_SECRET}`
-        ).toString("base64")}`,
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept: "application/json",
-      },
+      headers: RETURN_AUTH_HEADER,
       timeout: 30000,
     });
+
+    // Trendyol bazen HTML döndürebiliyor, bu kontrol onu engeller
+    if (typeof response.data === "string" && response.data.includes("<html")) {
+      throw new Error("Trendyol API HTML döndürdü, muhtemelen endpoint yanlış veya kimlik doğrulama hatalı.");
+    }
 
     res.json(response.data);
   } catch (error) {
