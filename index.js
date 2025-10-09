@@ -6,10 +6,11 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// ---- Temel URL'ler ----
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
 const TRENDYOL_INT_BASE_URL = "https://api.trendyol.com";
 
-// ---- Orders Auth ----
+// ---- Sipariş Auth ----
 const ORDER_AUTH_HEADER = {
   Authorization: `Basic ${Buffer.from(
     `${process.env.TRENDYOL_ORDER_API_KEY}:${process.env.TRENDYOL_ORDER_API_SECRET}`
@@ -18,7 +19,7 @@ const ORDER_AUTH_HEADER = {
   Accept: "application/json",
 };
 
-// ---- Vendor Info Auth ----
+// ---- Satıcı Bilgileri Auth ----
 const VENDOR_AUTH_HEADER = {
   Authorization: `Basic ${Buffer.from(
     `${process.env.TRENDYOL_VENDOR_API_KEY}:${process.env.TRENDYOL_VENDOR_API_SECRET}`
@@ -27,7 +28,7 @@ const VENDOR_AUTH_HEADER = {
   Accept: "application/json",
 };
 
-// ---- Return (İade) Auth ----
+// ---- İade Auth ----
 const RETURN_AUTH_HEADER = {
   Authorization: `Basic ${Buffer.from(
     `${process.env.TRENDYOL_RETURN_API_KEY}:${process.env.TRENDYOL_RETURN_API_SECRET}`
@@ -41,7 +42,7 @@ app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
 
-// ✅ Orders endpoint (son 15 gün)
+// ✅ Orders endpoint (Son 15 Gün)
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let allOrders = [];
@@ -94,7 +95,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
   }
 });
 
-// ✅ Vendor Info endpoint (Satıcı Bilgileri - adresler)
+// ✅ Vendor Info endpoint (Satıcı Bilgileri)
 app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   try {
     const url = `${TRENDYOL_INT_BASE_URL}/integration/sellers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
@@ -108,27 +109,16 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   }
 });
 
-// ✅ Returns endpoint (İade İşlemleri)
-// ✅ Returns endpoint (İade İşlemleri)
-// ✅ Returns endpoint (İade İşlemleri)
-// ✅ Returns endpoint (İade İşlemleri) - Proxy Destekli Test
 // ✅ Returns endpoint (İade İşlemleri - ScraperAPI destekli)
 app.get("/api/trendyol/returns", async (req, res) => {
   try {
     const originalUrl = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/returns?page=0&size=10`;
 
     // 🔑 ScraperAPI entegrasyonu
-    const scraperUrl = `http://api.scraperapi.com?api_key=f83577efbc852c9e449d6482438236e5&url=${encodeURIComponent(originalUrl)}`;
+    const scraperUrl = `https://api.scraperapi.com/?api_key=${process.env.SCRAPERAPI_KEY}&url=${encodeURIComponent(originalUrl)}`;
 
     const response = await axios.get(scraperUrl, {
-      headers: {
-        Authorization: `Basic ${Buffer.from(
-          `${process.env.TRENDYOL_RETURN_API_KEY}:${process.env.TRENDYOL_RETURN_API_SECRET}`
-        ).toString("base64")}`,
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept: "application/json",
-      },
+      headers: RETURN_AUTH_HEADER,
       timeout: 30000, // 30 saniye beklesin
     });
 
@@ -141,10 +131,7 @@ app.get("/api/trendyol/returns", async (req, res) => {
   }
 });
 
-
-
-
-
+// ✅ Sunucu Başlat
 app.listen(PORT, () => {
   console.log(`🚀 Backend running at http://localhost:${PORT}`);
 });
