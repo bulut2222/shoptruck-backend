@@ -15,19 +15,23 @@ const TRENDYOL_INT_BASE_URL = "https://api.trendyol.com";
 
 // ---------- FIREBASE ADMIN ----------
 try {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  const serviceAccountJSON = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!serviceAccountJSON) throw new Error("FIREBASE_SERVICE_ACCOUNT boş veya tanımlı değil");
+
+  const serviceAccount = JSON.parse(serviceAccountJSON);
+
   if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
-    console.log("✅ Firebase Admin başarıyla başlatıldı (Railway env)");
+    console.log("✅ Firebase Admin başarıyla başlatıldı");
   }
 } catch (error) {
   console.error("🛑 Firebase Admin başlatılamadı:", error.message);
 }
 
-// Firestore ref
-const db = admin.firestore();
+// ---------- Firestore ----------
+const db = admin.apps.length ? admin.firestore() : null;
 
 // ---------- Nodemailer (Gmail SMTP) ----------
 const mailer = nodemailer.createTransport({
@@ -71,39 +75,39 @@ const WEBHOOK_AUTH_HEADER = {
   Accept: "application/json",
 };
 
+const ACCOUNTING_AUTH_HEADER = {
+  Authorization:
+    "Basic " +
+    Buffer.from(
+      `${process.env.TRENDYOL_ACCOUNTING_API_KEY}:${process.env.TRENDYOL_ACCOUNTING_API_SECRET}`
+    ).toString("base64"),
+  "User-Agent": "ShopTruckAccountingIntegration",
+  Accept: "application/json",
+};
+
 // ---------- Helper: Order detayını Trendyol’dan çek ----------
 async function fetchOrderDetailsByNumber(orderNumber) {
-  // Trendyol Orders endpoint orderNumber filtresi destekliyor.
-  // Bazı hesaplarda orderNumber tek başına yetmezse tarihle de daraltırız (fallback).
   const DAY = 24 * 60 * 60 * 1000;
   const now = Date.now();
   const startDate = now - 15 * DAY;
 
   const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`;
-  const paramsPrimary = {
-    orderNumber,
-    page: 0,
-    size: 50,
-    orderByCreatedDate: true,
-  };
 
-  // 1) Direkt orderNumber ile dene
-  let r = await axios.get(url, { headers: ORDER_AUTH_HEADER, params: paramsPrimary });
-  let content = r.data?.content || [];
-  if (content.length > 0) return content[0];
+  try {
+    const primary = await axios.get(url, {
+      headers: ORDER_AUTH_HEADER,
+      params: { orderNumber, page: 0, size: 20, orderByCreatedDate: true },
+    });
+    const content = primary.data?.content || [];
+    if (content.length > 0) return content[0];
+  } catch {}
 
-  // 2) Fallback: son 15 güne bak, eşleşen orderNumber’ı bul
-  const paramsFallback = {
-    startDate,
-    endDate: now,
-    page: 0,
-    size: 200,
-    orderByCreatedDate: true,
-  };
-  r = await axios.get(url, { headers: ORDER_AUTH_HEADER, params: paramsFallback });
-  content = r.data?.content || [];
-  const found = content.find(o => String(o.orderNumber) === String(orderNumber));
-  return found || null;
+  const fallback = await axios.get(url, {
+    headers: ORDER_AUTH_HEADER,
+    params: { startDate, endDate: now, page: 0, size: 200, orderByCreatedDate: true },
+  });
+  const content = fallback.data?.content || [];
+  return content.find((o) => String(o.orderNumber) === String(orderNumber)) || null;
 }
 
 // ---------- Root ----------
@@ -111,7 +115,19 @@ app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Aktif (Railway + Firebase) 🚀");
 });
 
-// ---------- Orders (listeleme örneği) ----------
+// ---------- Muhasebe & Finans ----------
+app.get("/api/trendyol/accounting", async (req, res) => {
+  try {
+    const url = `https://api.trendyol.com/integration/sellers/${process.env.TRENDYOL_ACCOUNTING_SELLER_ID}/financials`;
+    const r = await axios.get(url, { headers: ACCOUNTING_AUTH_HEADER });
+    res.json(r.data);
+  } catch (err) {
+    console.error("🛑 Accounting API Error:", err.response?.data || err.message);
+    res.status(500).json({ error: "Accounting data fetch failed" });
+  }
+});
+
+// ---------- Orders ----------
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     const DAY = 24 * 60 * 60 * 1000;
@@ -161,13 +177,11 @@ app.post("/api/trendyol/webhook", async (req, res) => {
     const payload = req.body || {};
     console.log("📩 Yeni Webhook Geldi:", JSON.stringify(payload, null, 2));
 
-    // 1) Order number’ı al
     const orderNumber =
       payload?.orderNumber ||
       payload?.data?.orderNumber ||
       payload?.data?.order?.orderNumber;
 
-    // 2) Trendyol’dan detayları çek (mümkünse)
     let orderDetail = null;
     if (orderNumber) {
       try {
@@ -177,57 +191,41 @@ app.post("/api/trendyol/webhook", async (req, res) => {
       }
     }
 
-    // 3) Firestore’a kaydet
-    // 3) Firestore’a kaydet
-const doc = {
-  event: payload?.event || "UNKNOWN",
-  orderNumber: String(orderNumber || ""),
-  status: payload?.status || payload?.data?.status || orderDetail?.status || "",
-  timestamp: payload?.timestamp || payload?.data?.timestamp || new Date().toISOString(),
-  receivedAt: new Date().toISOString(),
+    const doc = {
+      event: payload?.event || "UNKNOWN",
+      orderNumber: String(orderNumber || ""),
+      status: payload?.status || payload?.data?.status || orderDetail?.status || "",
+      timestamp: payload?.timestamp || payload?.data?.timestamp || new Date().toISOString(),
+      receivedAt: new Date().toISOString(),
+      customerFirstName: payload?.data?.customerFirstName || orderDetail?.customerFirstName || "",
+      customerLastName: payload?.data?.customerLastName || orderDetail?.customerLastName || "",
+      customer:
+        payload?.data?.customerFirstName && payload?.data?.customerLastName
+          ? `${payload.data.customerFirstName} ${payload.data.customerLastName}`
+          : [orderDetail?.customerFirstName, orderDetail?.customerLastName].filter(Boolean).join(" "),
+      productName: payload?.data?.productName || orderDetail?.lines?.[0]?.productName || "",
+      grossAmount: payload?.data?.grossAmount || orderDetail?.grossAmount || 0,
+      raw: payload,
+    };
 
-  // 🔹 Postman’dan gelen data blok desteği eklendi
-  customerFirstName:
-    payload?.data?.customerFirstName || orderDetail?.customerFirstName || "",
-  customerLastName:
-    payload?.data?.customerLastName || orderDetail?.customerLastName || "",
-  customer:
-    (payload?.data?.customerFirstName && payload?.data?.customerLastName)
-      ? `${payload.data.customerFirstName} ${payload.data.customerLastName}`
-      : [orderDetail?.customerFirstName, orderDetail?.customerLastName].filter(Boolean).join(" "),
+    if (db) await db.collection("WebhookLogs").add(doc);
 
-  shippingAddress:
-    orderDetail?.shipmentAddress
-      ? `${orderDetail.shipmentAddress?.fullName || ""} ${orderDetail.shipmentAddress?.address1 || ""} ${orderDetail.shipmentAddress?.city || ""}`.trim()
-      : "",
+    const title = "📦 Yeni Trendyol Siparişi";
+    const body = `#${orderNumber || "N/A"}\n👤 ${doc.customer || "Bilinmiyor"}\n🛍️ ${doc.productName || "-"}\n💰 ${doc.grossAmount || 0}₺\nDurum: ${doc.status || "-"}`;
 
-  productName:
-    payload?.data?.productName || orderDetail?.lines?.[0]?.productName || "",
-  grossAmount:
-    payload?.data?.grossAmount || orderDetail?.grossAmount || 0,
-  raw: payload,
-};
+    if (admin.apps.length)
+      await admin.messaging().send({
+        topic: "trendyol",
+        notification: { title, body },
+        data: {
+          orderNumber: String(orderNumber || ""),
+          status: String(doc.status || ""),
+          customer: String(doc.customer || "Bilinmiyor"),
+          productName: String(doc.productName || ""),
+          amount: String(doc.grossAmount || "0"),
+        },
+      });
 
-
-    await db.collection("WebhookLogs").add(doc);
-
-    // 4) Push Bildirim (topic: trendyol)
-const title = "📦 Yeni Trendyol Siparişi";
-const body = `#${orderNumber || "N/A"}\n👤 ${doc.customer || "Bilinmiyor"}\n🛍️ ${doc.productName || "-"}\n💰 ${doc.grossAmount || 0}₺\nDurum: ${doc.status || "-"}`;
-
-    await admin.messaging().send({
-  topic: "trendyol",
-  notification: { title, body },
-  data: {
-    orderNumber: String(orderNumber || ""),
-    status: String(doc.status || ""),
-    customer: String(doc.customer || "Bilinmiyor"),
-    productName: String(doc.productName || ""),
-    amount: String(doc.grossAmount || "0"),
-  },
-});
-
-    // 5) E-posta gönder
     try {
       await mailer.sendMail({
         from: process.env.MAIL_FROM || process.env.MAIL_USER,
@@ -237,8 +235,6 @@ const body = `#${orderNumber || "N/A"}\n👤 ${doc.customer || "Bilinmiyor"}\n�
           <h3>Yeni Sipariş Alındı</h3>
           <p><b>Sipariş No:</b> ${orderNumber || "-"}</p>
           <p><b>Durum:</b> ${doc.status || "-"}</p>
-          <p><b>Tarih:</b> ${new Date(doc.timestamp).toLocaleString("tr-TR")}</p>
-          <hr/>
           <p><b>Müşteri:</b> ${doc.customer || "-"}</p>
           <p><b>Ürün:</b> ${doc.productName || "-"}</p>
           <p><b>Tutar:</b> ${doc.grossAmount ?? "-"}</p>
@@ -272,4 +268,4 @@ app.get("/api/trendyol/webhook/status", async (req, res) => {
 // ---------- SERVER ----------
 app.listen(PORT, () => {
   console.log(`🚀 Backend aktif: http://localhost:${PORT}`);
-}); 
+});
