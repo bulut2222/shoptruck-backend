@@ -73,6 +73,15 @@ const WEBHOOK_AUTH_HEADER = {
   "User-Agent": "ShopTruckWebhook",
   Accept: "application/json",
 };
+const PRODUCT_AUTH_HEADER = {
+  Authorization:
+    "Basic " +
+    Buffer.from(
+      `${process.env.TRENDYOL_PRODUCT_API_KEY}:${process.env.TRENDYOL_PRODUCT_API_SECRET}`
+    ).toString("base64"),
+  "User-Agent": "ShopTruckProduct",
+  Accept: "application/json",
+};
 
 // ---------- Helper: Order detayını Trendyol’dan çek ----------
 async function fetchOrderDetailsByNumber(orderNumber) {
@@ -263,6 +272,36 @@ app.get("/api/trendyol/webhook/status", async (req, res) => {
   } catch (err) {
     console.error("🛑 Webhook Status Error:", err.response?.data || err.message);
     res.status(500).json({ error: "Webhook status fetch failed" });
+  }
+});
+// ---------- Products ----------
+app.get("/api/trendyol/products", async (req, res) => {
+  try {
+    const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_PRODUCT_SELLER_ID}/products`;
+    const response = await axios.get(url, {
+      headers: PRODUCT_AUTH_HEADER,
+      params: { page: 0, size: 50 },
+    });
+
+    const products =
+      response.data?.content?.map((p) => ({
+        id: p.id,
+        name: p.productName,
+        barcode: p.barcode,
+        stockCode: p.stockCode,
+        brand: p.brand?.name || "-",
+        category: p.category?.name || "-",
+        salePrice: p.listPrice?.price || 0,
+        discountedPrice: p.salePrice?.price || 0,
+        quantity: p.quantity,
+        approved: p.approved,
+        image: p.images?.[0]?.url || null,
+      })) || [];
+
+    res.json(products);
+  } catch (err) {
+    console.error("🛑 Products API Error:", err.response?.data || err.message);
+    res.status(500).json({ error: "Products fetch failed" });
   }
 });
 
