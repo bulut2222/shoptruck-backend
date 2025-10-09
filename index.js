@@ -140,7 +140,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
 app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   try {
     // ✅ Yeni endpoint: supplier-addresses
-    const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/supplier-addresses`;
+const url = `https://api.trendyol.com/integration/sellers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
     const r = await axios.get(url, { headers: VENDOR_AUTH_HEADER });
 
     // Cloudflare HTML dönerse JSON parse hata vermesin
