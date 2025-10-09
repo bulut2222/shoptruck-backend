@@ -120,6 +120,15 @@ app.get("/api/trendyol/orders", async (req, res) => {
     );
 
    const data =
+  response.data?.content?.map((o) => ({
+    orderNumber: o.orderNumber,
+    customerFirstName: o.customerFirstName,
+    customerLastName: o.customerLastName,
+    grossAmount: o.grossAmount,
+    productName: o.lines?.[0]?.productName || "",
+    status: o.status,
+    orderDate: o.orderDate,
+  })) || [];
 
     res.json(data);
   } catch (err) {
