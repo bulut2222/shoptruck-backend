@@ -109,17 +109,25 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
 });
 
 // ✅ Returns endpoint (İade İşlemleri)
+// ✅ Returns endpoint (İade İşlemleri)
 app.get("/api/trendyol/returns", async (req, res) => {
   try {
-    const url = `${TRENDYOL_INT_BASE_URL}/integration/returns/${process.env.TRENDYOL_RETURN_SELLER_ID}/list`;
+    const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/returns`;
+
     const response = await axios.get(url, {
-      headers: RETURN_AUTH_HEADER,
+      headers: {
+        Authorization: `Basic ${Buffer.from(
+          `${process.env.TRENDYOL_RETURN_API_KEY}:${process.env.TRENDYOL_RETURN_API_SECRET}`
+        ).toString("base64")}`,
+        "User-Agent": "ShopTruckReturnIntegration",
+        Accept: "application/json",
+      },
       params: {
         page: 0,
         size: 20,
-        status: "ALL",
       },
     });
+
     res.json(response.data);
   } catch (error) {
     console.error("Return API Error:", error.response?.data || error.message);
@@ -128,6 +136,7 @@ app.get("/api/trendyol/returns", async (req, res) => {
       .json(error.response?.data || { error: "Return info fetch failed" });
   }
 });
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Backend running at http://localhost:${PORT}`);
