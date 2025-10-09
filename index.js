@@ -15,18 +15,18 @@ const TRENDYOL_INT_BASE_URL = "https://api.trendyol.com";
 
 // ---------- FIREBASE ADMIN ----------
 try {
-  const firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
+const firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
 
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: firebasePrivateKey,
-      }),
-    });
-    console.log("✅ Firebase Admin başarıyla başlatıldı");
-  }
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: firebasePrivateKey,
+    }),
+  });
+  console.log("✅ Firebase Admin başarıyla başlatıldı");
+}
 } catch (error) {
   console.error("🛑 Firebase Admin başlatılamadı:", error.message);
 }
@@ -76,6 +76,16 @@ const WEBHOOK_AUTH_HEADER = {
   Accept: "application/json",
 };
 
+const ACCOUNTING_AUTH_HEADER = {
+  Authorization:
+    "Basic " +
+    Buffer.from(
+      `${process.env.TRENDYOL_ACCOUNTING_API_KEY}:${process.env.TRENDYOL_ACCOUNTING_API_SECRET}`
+    ).toString("base64"),
+  "User-Agent": "ShopTruckAccountingIntegration",
+  Accept: "application/json",
+};
+
 // ---------- Helper: Order detayını Trendyol’dan çek ----------
 async function fetchOrderDetailsByNumber(orderNumber) {
   const DAY = 24 * 60 * 60 * 1000;
@@ -103,7 +113,19 @@ async function fetchOrderDetailsByNumber(orderNumber) {
 
 // ---------- Root ----------
 app.get("/", (req, res) => {
-  res.send("✅ ShopTruck Backend Aktif (Firebase + Webhook) 🚀");
+  res.send("✅ ShopTruck Backend Aktif (Railway + Firebase) 🚀");
+});
+
+// ---------- Muhasebe & Finans ----------
+app.get("/api/trendyol/accounting", async (req, res) => {
+  try {
+    const url = `https://api.trendyol.com/integration/sellers/${process.env.TRENDYOL_ACCOUNTING_SELLER_ID}/financials`;
+    const r = await axios.get(url, { headers: ACCOUNTING_AUTH_HEADER });
+    res.json(r.data);
+  } catch (err) {
+    console.error("🛑 Accounting API Error:", err.response?.data || err.message);
+    res.status(500).json({ error: "Accounting data fetch failed" });
+  }
 });
 
 // ---------- Orders ----------
@@ -139,32 +161,16 @@ app.get("/api/trendyol/orders", async (req, res) => {
 });
 
 // ---------- Vendor Info ----------
-// ---------- Vendor Info ----------
 app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   try {
-    const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
+    const url = `${TRENDYOL_INT_BASE_URL}/integration/sellers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
     const r = await axios.get(url, { headers: VENDOR_AUTH_HEADER });
-
-    // Trendyol bazen data'yı boş döndürürse hata atma
-    if (!r.data || Object.keys(r.data).length === 0) {
-      console.warn("⚠️ Vendor addresses boş döndü.");
-      return res.json({ addresses: [], message: "Boş sonuç döndü" });
-    }
-
-    // Düzgün veri varsa direkt gönder
     res.json(r.data);
   } catch (err) {
     console.error("🛑 Vendor API Error:", err.response?.data || err.message);
-
-    // Hata durumunda JSON formatında cevap gönder, Android kırılmasın
-    res.status(200).json({
-      addresses: [],
-      message: "Trendyol Vendor API şu anda erişilemiyor veya boş döndü.",
-      error: err.response?.data || err.message,
-    });
+    res.status(500).json({ error: "Vendor info fetch failed" });
   }
 });
-
 
 // ---------- Webhook ----------
 app.post("/api/trendyol/webhook", async (req, res) => {
