@@ -2,6 +2,7 @@ import express from "express";
 import axios from "axios";
 import dotenv from "dotenv";
 import admin from "firebase-admin";
+import fs from "fs";
 
 // Ortam değişkenlerini yükle (.env + Railway)
 dotenv.config();
@@ -20,16 +21,28 @@ const TRENDYOL_INT_BASE_URL = "https://api.trendyol.com";
 
 // ---------- FIREBASE ADMIN (Railway ortam değişkeninden JSON olarak okuma) ----------
 try {
-  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  let serviceAccount;
+
+  if (process.env.FIREBASE_FROM_FILE === "true") {
+    // Lokal test için JSON dosyasından oku
+    serviceAccount = JSON.parse(fs.readFileSync("./serviceAccountKey.json"));
+  } else {
+    // Railway ortam değişkeninden oku
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  }
+
   if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
-    console.log("✅ Firebase Admin başarıyla başlatıldı (Railway env)");
+    console.log("✅ Firebase Admin başarıyla başlatıldı (Firestore aktif)");
   }
 } catch (error) {
   console.error("🛑 Firebase Admin başlatılamadı:", error.message);
 }
+
+// Firestore referansı
+const db = admin.firestore();
 
 // ---------- AUTH HEADERS ----------
 const ORDER_AUTH_HEADER = {
@@ -105,11 +118,26 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   }
 });
 
-// ---------- WEBHOOK ----------
-app.post("/api/trendyol/webhook", (req, res) => {
-  console.log("📩 Yeni Webhook Geldi (Railway):");
-  console.log(JSON.stringify(req.body, null, 2));
-  res.json({ success: true });
+// ---------- WEBHOOK (Sipariş geldiğinde otomatik kaydet) ----------
+app.post("/api/trendyol/webhook", async (req, res) => {
+  try {
+    const data = req.body;
+
+    console.log("📩 Yeni Webhook Geldi (Railway):");
+    console.log(JSON.stringify(data, null, 2));
+
+    // Firestore koleksiyonuna kaydet
+    await db.collection("WebhookLogs").add({
+      ...data,
+      receivedAt: new Date().toISOString(),
+    });
+
+    console.log("✅ Firestore’a kayıt eklendi (WebhookLogs)");
+    res.json({ success: true });
+  } catch (err) {
+    console.error("🛑 Webhook kayıt hatası:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // ---------- WEBHOOK STATUS ----------
