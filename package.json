@@ -4,8 +4,12 @@
   "description": "ShopTruck için Trendyol entegrasyon backend",
   "main": "index.js",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node index.js",
+    "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": ["shoptruck", "trendyol", "backend", "firebase"],
@@ -18,5 +22,8 @@
     "express": "^4.19.2",
     "firebase-admin": "^12.5.0",
     "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
   }
 }
