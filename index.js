@@ -204,13 +204,16 @@ app.post("/api/trendyol/webhook", async (req, res) => {
     const title = "Yeni Trendyol Siparişi";
     const body = `#${orderNumber || "N/A"} - ${doc.status || ""}`;
     await admin.messaging().send({
-      topic: "trendyol",
-      notification: { title, body },
-      data: {
-        orderNumber: String(orderNumber || ""),
-        status: String(doc.status || ""),
-      },
-    });
+  topic: "trendyol",
+  notification: { title, body },
+  data: {
+    orderNumber: String(orderNumber || ""),
+    status: String(doc.status || ""),
+    customer: String(doc.customer || "Bilinmiyor"),
+    productName: String(doc.productName || ""),
+    amount: String(doc.grossAmount || "0"),
+  },
+});
 
     // 5) E-posta gönder
     try {
