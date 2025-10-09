@@ -27,7 +27,16 @@ const VENDOR_AUTH_HEADER = {
   Accept: "application/json",
 };
 
-// ✅ Root
+// ---- Return (İade) Auth ----
+const RETURN_AUTH_HEADER = {
+  Authorization: `Basic ${Buffer.from(
+    `${process.env.TRENDYOL_RETURN_API_KEY}:${process.env.TRENDYOL_RETURN_API_SECRET}`
+  ).toString("base64")}`,
+  "User-Agent": "ShopTruckReturnIntegration",
+  Accept: "application/json",
+};
+
+// ✅ Root endpoint
 app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
@@ -89,17 +98,34 @@ app.get("/api/trendyol/orders", async (req, res) => {
 app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   try {
     const url = `${TRENDYOL_INT_BASE_URL}/integration/sellers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
-
-    const response = await axios.get(url, {
-      headers: VENDOR_AUTH_HEADER,
-    });
-
+    const response = await axios.get(url, { headers: VENDOR_AUTH_HEADER });
     res.json(response.data);
   } catch (error) {
     console.error("Vendor API Error:", error.response?.data || error.message);
     res
       .status(error.response?.status || 500)
       .json(error.response?.data || { error: "Vendor info fetch failed" });
+  }
+});
+
+// ✅ Returns endpoint (İade İşlemleri)
+app.get("/api/trendyol/returns", async (req, res) => {
+  try {
+    const url = `${TRENDYOL_INT_BASE_URL}/integration/returns/${process.env.TRENDYOL_RETURN_SELLER_ID}/list`;
+    const response = await axios.get(url, {
+      headers: RETURN_AUTH_HEADER,
+      params: {
+        page: 0,
+        size: 20,
+        status: "ALL",
+      },
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Return API Error:", error.response?.data || error.message);
+    res
+      .status(error.response?.status || 500)
+      .json(error.response?.data || { error: "Return info fetch failed" });
   }
 });
 
