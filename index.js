@@ -112,14 +112,20 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
 // ✅ Returns endpoint (İade İşlemleri - ScraperAPI destekli)
 app.get("/api/trendyol/returns", async (req, res) => {
   try {
-    const originalUrl = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/returns?page=0&size=10`;
+    const originalUrl = `https://api.trendyol.com/sapigw/return/v2/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/returns?page=0&size=10`;
 
-    // 🔑 ScraperAPI entegrasyonu
     const scraperUrl = `https://api.scraperapi.com/?api_key=${process.env.SCRAPERAPI_KEY}&url=${encodeURIComponent(originalUrl)}`;
 
     const response = await axios.get(scraperUrl, {
-      headers: RETURN_AUTH_HEADER,
-      timeout: 30000, // 30 saniye beklesin
+      headers: {
+        Authorization: `Basic ${Buffer.from(
+          `${process.env.TRENDYOL_RETURN_API_KEY}:${process.env.TRENDYOL_RETURN_API_SECRET}`
+        ).toString("base64")}`,
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        Accept: "application/json",
+      },
+      timeout: 30000,
     });
 
     res.json(response.data);
