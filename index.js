@@ -1,5 +1,7 @@
 import express from "express";
 import axios from "axios";
+import https from "https";
+const agent = new https.Agent({ rejectUnauthorized: false });
 import dotenv from "dotenv";
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
@@ -276,6 +278,7 @@ app.get("/api/trendyol/webhook/status", async (req, res) => {
 });
 // ---------- Products ----------
 // ---------- Products ----------
+// ---------- Products ----------
 app.get("/api/trendyol/products", async (req, res) => {
   try {
     const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_PRODUCT_SELLER_ID}/products`;
@@ -293,6 +296,7 @@ app.get("/api/trendyol/products", async (req, res) => {
         Accept: "application/json",
       },
       params: { page: 0, size: 50 },
+      httpsAgent: agent, // 🔥 SSL doğrulamasını devre dışı bıraktık
     });
 
     console.log("🟢 Trendyol ürün cevabı geldi:", response.status);
@@ -329,6 +333,7 @@ app.get("/api/trendyol/products", async (req, res) => {
     });
   }
 });
+
 
 
 // ---------- SERVER ----------
