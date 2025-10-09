@@ -1,9 +1,9 @@
-// index.js
 import express from "express";
 import axios from "axios";
 import dotenv from "dotenv";
+import admin from "firebase-admin";
 
-// Ortam değişkenlerini yükle
+// Ortam değişkenlerini yükle (.env + Railway)
 dotenv.config();
 const app = express();
 
@@ -17,6 +17,19 @@ const PORT = process.env.PORT || 8080;
 // Trendyol Base URLs
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
 const TRENDYOL_INT_BASE_URL = "https://api.trendyol.com";
+
+// ---------- FIREBASE ADMIN (Railway ortam değişkeninden JSON olarak okuma) ----------
+try {
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+    });
+    console.log("✅ Firebase Admin başarıyla başlatıldı (Railway env)");
+  }
+} catch (error) {
+  console.error("🛑 Firebase Admin başlatılamadı:", error.message);
+}
 
 // ---------- AUTH HEADERS ----------
 const ORDER_AUTH_HEADER = {
@@ -45,7 +58,7 @@ const WEBHOOK_AUTH_HEADER = {
 
 // ---------- ROOT TEST ----------
 app.get("/", (req, res) => {
-  res.send("✅ ShopTruck Backend Aktif (Railway) 🚀");
+  res.send("✅ ShopTruck Backend Aktif (Railway + Firebase) 🚀");
 });
 
 // ---------- ORDERS ----------
@@ -63,14 +76,15 @@ app.get("/api/trendyol/orders", async (req, res) => {
       }
     );
 
-    const data = response.data?.content?.map((o) => ({
-      orderNumber: o.orderNumber,
-      customer: `${o.customerFirstName} ${o.customerLastName}`,
-      productName: o.lines?.[0]?.productName || "",
-      amount: o.grossAmount,
-      status: o.status,
-      orderDate: o.orderDate,
-    })) || [];
+    const data =
+      response.data?.content?.map((o) => ({
+        orderNumber: o.orderNumber,
+        customer: `${o.customerFirstName} ${o.customerLastName}`,
+        productName: o.lines?.[0]?.productName || "",
+        amount: o.grossAmount,
+        status: o.status,
+        orderDate: o.orderDate,
+      })) || [];
 
     res.json(data);
   } catch (err) {
