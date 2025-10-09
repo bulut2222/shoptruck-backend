@@ -111,11 +111,20 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
 // ✅ Returns endpoint (İade İşlemleri)
 // ✅ Returns endpoint (İade İşlemleri)
 // ✅ Returns endpoint (İade İşlemleri)
+// ✅ Returns endpoint (İade İşlemleri) - Proxy Destekli Test
 app.get("/api/trendyol/returns", async (req, res) => {
   try {
     const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/returns`;
 
     const response = await axios.get(url, {
+      proxy: {
+        host: "proxy.scrapeops.io",
+        port: 8080,
+        auth: {
+          username: "kullaniciadi", // test hesabı ya da demo kullanıcı adı
+          password: "parola",       // test hesabı şifresi
+        },
+      },
       headers: {
         Authorization: `Basic ${Buffer.from(
           `${process.env.TRENDYOL_RETURN_API_KEY}:${process.env.TRENDYOL_RETURN_API_SECRET}`
@@ -125,14 +134,10 @@ app.get("/api/trendyol/returns", async (req, res) => {
         Accept: "application/json, text/plain, */*",
         "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
         Connection: "keep-alive",
-        DNT: "1",
-        "Sec-Fetch-Dest": "empty",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "same-site",
       },
       params: {
         page: 0,
-        size: 20,
+        size: 10,
       },
     });
 
@@ -144,6 +149,7 @@ app.get("/api/trendyol/returns", async (req, res) => {
       .json(error.response?.data || { error: "Return info fetch failed" });
   }
 });
+
 
 
 
