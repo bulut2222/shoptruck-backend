@@ -156,15 +156,18 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
       console.warn("⚠️ Vendor addresses boş döndü.");
       return res.json({ addresses: [], message: "Boş sonuç döndü" });
     }
-
+if (typeof r.data === "string" && r.data.includes("<html")) {
+  console.warn("⚠️ Trendyol HTML döndürdü (Cloudflare Engeli)");
+  return res.json({ addresses: [], message: "Trendyol engeli (HTML döndü)" });
+}
     res.json(r.data);
   } catch (err) {
     console.error("🛑 Vendor API Error:", err.response?.data || err.message);
-    res.status(200).json({
-      addresses: [],
-      message: "Trendyol Vendor API erişilemiyor veya boş döndü.",
-      error: err.response?.data || err.message,
-    });
+   res.status(200).json({
+  addresses: [],
+  message: "Trendyol Vendor API şu anda erişilemiyor (Cloudflare engeli olabilir).",
+  error: String(err.response?.data || err.message).substring(0, 500),
+});
   }
 });
 
