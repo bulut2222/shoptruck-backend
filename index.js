@@ -279,10 +279,10 @@ app.get("/api/trendyol/webhook/status", async (req, res) => {
 // ---------- Products ----------
 // ---------- Products ----------
 // ---------- Products ----------
+// ---------- Products ----------
 app.get("/api/trendyol/products", async (req, res) => {
   try {
     const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_PRODUCT_SELLER_ID}/products`;
-
     console.log("🟢 Trendyol ürün isteği gönderiliyor:", url);
 
     const response = await axios.get(url, {
@@ -296,7 +296,7 @@ app.get("/api/trendyol/products", async (req, res) => {
         Accept: "application/json",
       },
       params: { page: 0, size: 50 },
-      httpsAgent: agent, // 🔥 SSL doğrulamasını devre dışı bıraktık
+      httpsAgent: agent,
     });
 
     console.log("🟢 Trendyol ürün cevabı geldi:", response.status);
@@ -333,6 +333,7 @@ app.get("/api/trendyol/products", async (req, res) => {
     });
   }
 });
+
 
 
 
