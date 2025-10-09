@@ -15,17 +15,18 @@ const TRENDYOL_INT_BASE_URL = "https://api.trendyol.com";
 
 // ---------- FIREBASE ADMIN ----------
 try {
-  const serviceAccountJSON = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!serviceAccountJSON) throw new Error("FIREBASE_SERVICE_ACCOUNT boş veya tanımlı değil");
+const firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
 
-  const serviceAccount = JSON.parse(serviceAccountJSON);
-
-  if (!admin.apps.length) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-    console.log("✅ Firebase Admin başarıyla başlatıldı");
-  }
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: firebasePrivateKey,
+    }),
+  });
+  console.log("✅ Firebase Admin başarıyla başlatıldı");
+}
 } catch (error) {
   console.error("🛑 Firebase Admin başlatılamadı:", error.message);
 }
