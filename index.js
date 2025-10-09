@@ -112,33 +112,24 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
 // ✅ Returns endpoint (İade İşlemleri)
 // ✅ Returns endpoint (İade İşlemleri)
 // ✅ Returns endpoint (İade İşlemleri) - Proxy Destekli Test
+// ✅ Returns endpoint (İade İşlemleri - ScraperAPI destekli)
 app.get("/api/trendyol/returns", async (req, res) => {
   try {
-    const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/returns`;
+    const originalUrl = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_RETURN_SELLER_ID}/returns?page=0&size=10`;
 
-    const response = await axios.get(url, {
-      proxy: {
-        host: "proxy.scrapeops.io",
-        port: 8080,
-        auth: {
-          username: "kullaniciadi", // test hesabı ya da demo kullanıcı adı
-          password: "parola",       // test hesabı şifresi
-        },
-      },
+    // 🔑 ScraperAPI entegrasyonu
+    const scraperUrl = `http://api.scraperapi.com?api_key=f83577efbc852c9e449d6482438236e5&url=${encodeURIComponent(originalUrl)}`;
+
+    const response = await axios.get(scraperUrl, {
       headers: {
         Authorization: `Basic ${Buffer.from(
           `${process.env.TRENDYOL_RETURN_API_KEY}:${process.env.TRENDYOL_RETURN_API_SECRET}`
         ).toString("base64")}`,
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept: "application/json, text/plain, */*",
-        "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
-        Connection: "keep-alive",
+        Accept: "application/json",
       },
-      params: {
-        page: 0,
-        size: 10,
-      },
+      timeout: 30000, // 30 saniye beklesin
     });
 
     res.json(response.data);
@@ -149,6 +140,7 @@ app.get("/api/trendyol/returns", async (req, res) => {
       .json(error.response?.data || { error: "Return info fetch failed" });
   }
 });
+
 
 
 
