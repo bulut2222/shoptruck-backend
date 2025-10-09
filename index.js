@@ -26,10 +26,9 @@ try {
   console.error("🛑 Firebase Admin başlatılamadı:", error.message);
 }
 
-// Firestore ref
 const db = admin.firestore();
 
-// ---------- Nodemailer (Gmail SMTP) ----------
+// ---------- Nodemailer ----------
 const mailer = nodemailer.createTransport({
   host: process.env.MAIL_HOST,
   port: Number(process.env.MAIL_PORT || 465),
@@ -71,7 +70,6 @@ const WEBHOOK_AUTH_HEADER = {
   Accept: "application/json",
 };
 
-// 🧾 Fatura entegrasyonu
 const INVOICE_AUTH_HEADER = {
   Authorization:
     "Basic " +
@@ -82,7 +80,7 @@ const INVOICE_AUTH_HEADER = {
   Accept: "application/json",
 };
 
-// ---------- Helper: Order detayını Trendyol’dan çek ----------
+// ---------- Helper ----------
 async function fetchOrderDetailsByNumber(orderNumber) {
   const DAY = 24 * 60 * 60 * 1000;
   const now = Date.now();
@@ -95,13 +93,7 @@ async function fetchOrderDetailsByNumber(orderNumber) {
   let content = r.data?.content || [];
   if (content.length > 0) return content[0];
 
-  const paramsFallback = {
-    startDate,
-    endDate: now,
-    page: 0,
-    size: 200,
-    orderByCreatedDate: true,
-  };
+  const paramsFallback = { startDate, endDate: now, page: 0, size: 200 };
   r = await axios.get(url, { headers: ORDER_AUTH_HEADER, params: paramsFallback });
   content = r.data?.content || [];
   const found = content.find((o) => String(o.orderNumber) === String(orderNumber));
@@ -110,7 +102,7 @@ async function fetchOrderDetailsByNumber(orderNumber) {
 
 // ---------- Root ----------
 app.get("/", (req, res) => {
-  res.send("✅ ShopTruck Backend Aktif (Railway + Firebase + Invoice) 🚀");
+  res.send("✅ ShopTruck Backend Aktif (Orders + Webhook + Invoice) 🚀");
 });
 
 // ---------- Siparişler ----------
@@ -124,7 +116,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
       `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`,
       {
         headers: ORDER_AUTH_HEADER,
-        params: { startDate, endDate: now, page: 0, size: 50, orderByCreatedDate: true },
+        params: { startDate, endDate: now, page: 0, size: 50 },
       }
     );
 
@@ -154,18 +146,6 @@ app.get("/api/trendyol/invoices", async (req, res) => {
   } catch (err) {
     console.error("🛑 Invoice Fetch Error:", err.response?.data || err.message);
     res.status(500).json({ error: "Invoice fetch failed" });
-  }
-});
-
-app.post("/api/trendyol/invoices/create", async (req, res) => {
-  try {
-    const payload = req.body;
-    const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_INVOICE_SELLER_ID}/invoices`;
-    const response = await axios.post(url, payload, { headers: INVOICE_AUTH_HEADER });
-    res.json({ success: true, result: response.data });
-  } catch (err) {
-    console.error("🛑 Invoice Create Error:", err.response?.data || err.message);
-    res.status(500).json({ error: "Invoice creation failed" });
   }
 });
 
