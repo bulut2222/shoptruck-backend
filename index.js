@@ -11,12 +11,10 @@ app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 8080;
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
-const TRENDYOL_INT_BASE_URL = "https://api.trendyol.com";
 
 // ---------- FIREBASE ADMIN ----------
 try {
   const firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
-
   if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert({
@@ -139,32 +137,36 @@ app.get("/api/trendyol/orders", async (req, res) => {
 });
 
 // ---------- Vendor Info ----------
-// ---------- Vendor Info ----------
 app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   try {
-    const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
+    // ✅ Yeni endpoint: supplier-addresses
+    const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/supplier-addresses`;
     const r = await axios.get(url, { headers: VENDOR_AUTH_HEADER });
 
-    // Trendyol bazen data'yı boş döndürürse hata atma
+    // Cloudflare HTML dönerse JSON parse hata vermesin
+    if (typeof r.data !== "object" || r.data.includes?.("<html")) {
+      console.warn("⚠️ Trendyol Vendor API HTML döndürdü (Cloudflare).");
+      return res.json({
+        addresses: [],
+        message: "Trendyol Vendor API HTML döndürdü (Cloudflare engeli olabilir).",
+      });
+    }
+
     if (!r.data || Object.keys(r.data).length === 0) {
       console.warn("⚠️ Vendor addresses boş döndü.");
       return res.json({ addresses: [], message: "Boş sonuç döndü" });
     }
 
-    // Düzgün veri varsa direkt gönder
     res.json(r.data);
   } catch (err) {
     console.error("🛑 Vendor API Error:", err.response?.data || err.message);
-
-    // Hata durumunda JSON formatında cevap gönder, Android kırılmasın
     res.status(200).json({
       addresses: [],
-      message: "Trendyol Vendor API şu anda erişilemiyor veya boş döndü.",
+      message: "Trendyol Vendor API erişilemiyor veya boş döndü.",
       error: err.response?.data || err.message,
     });
   }
 });
-
 
 // ---------- Webhook ----------
 app.post("/api/trendyol/webhook", async (req, res) => {
