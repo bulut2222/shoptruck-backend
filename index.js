@@ -13,7 +13,6 @@ app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 8080;
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
-
 // ---------- FIREBASE ADMIN ----------
 try {
   const firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
@@ -91,7 +90,7 @@ async function fetchOrderDetailsByNumber(orderNumber) {
   const now = Date.now();
   const startDate = now - 15 * DAY;
 
-  const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_ORDER_SELLER_ID}/orders`;
+const url = `${TRENDYOL_BASE_URL}/sellers/${process.env.TRENDYOL_PRODUCT_SELLER_ID}/products`;
 
   try {
     const primary = await axios.get(url, {
@@ -295,7 +294,7 @@ app.get("/api/trendyol/products", async (req, res) => {
         "User-Agent": "ShopTruckProduct",
         Accept: "application/json",
       },
-      params: { page: 0, size: 50 },
+      params: { page: 0, size: 100 },
       httpsAgent: agent,
     });
 
