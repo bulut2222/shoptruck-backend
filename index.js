@@ -275,35 +275,61 @@ app.get("/api/trendyol/webhook/status", async (req, res) => {
   }
 });
 // ---------- Products ----------
+// ---------- Products ----------
 app.get("/api/trendyol/products", async (req, res) => {
   try {
     const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_PRODUCT_SELLER_ID}/products`;
+
+    console.log("🟢 Trendyol ürün isteği gönderiliyor:", url);
+
     const response = await axios.get(url, {
-      headers: PRODUCT_AUTH_HEADER,
+      headers: {
+        Authorization:
+          "Basic " +
+          Buffer.from(
+            `${process.env.TRENDYOL_PRODUCT_API_KEY}:${process.env.TRENDYOL_PRODUCT_API_SECRET}`
+          ).toString("base64"),
+        "User-Agent": "ShopTruckProduct",
+        Accept: "application/json",
+      },
       params: { page: 0, size: 50 },
     });
 
+    console.log("🟢 Trendyol ürün cevabı geldi:", response.status);
+
+    if (typeof response.data !== "object" || !response.data.content) {
+      console.warn("⚠️ Trendyol HTML veya beklenmedik içerik döndürdü.");
+      return res.status(200).json({
+        error: "Cloudflare veya Trendyol HTML döndürdü",
+        raw: typeof response.data === "string" ? response.data.slice(0, 200) : response.data,
+      });
+    }
+
     const products =
-      response.data?.content?.map((p) => ({
+      response.data.content.map((p) => ({
         id: p.id,
         name: p.productName,
         barcode: p.barcode,
         stockCode: p.stockCode,
         brand: p.brand?.name || "-",
         category: p.category?.name || "-",
+        quantity: p.quantity,
         salePrice: p.listPrice?.price || 0,
         discountedPrice: p.salePrice?.price || 0,
-        quantity: p.quantity,
         approved: p.approved,
-        image: p.images?.[0]?.url || null,
+        image: p.images?.[0]?.url || "",
       })) || [];
 
     res.json(products);
   } catch (err) {
     console.error("🛑 Products API Error:", err.response?.data || err.message);
-    res.status(500).json({ error: "Products fetch failed" });
+    res.status(500).json({
+      error: "Products fetch failed",
+      details: err.response?.data || err.message,
+    });
   }
 });
+
 
 // ---------- SERVER ----------
 app.listen(PORT, () => {
