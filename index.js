@@ -4,8 +4,9 @@ import dotenv from "dotenv";
 
 dotenv.config();
 const app = express();
-const PORT = process.env.PORT || 8080;
+app.use(express.json()); // 🔥 Webhook POST için gerekli
 
+const PORT = process.env.PORT || 8080;
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
 const TRENDYOL_INT_BASE_URL = "https://api.trendyol.com";
 
@@ -27,12 +28,20 @@ const VENDOR_AUTH_HEADER = {
   Accept: "application/json",
 };
 
-// ✅ Root
+// ---- Webhook Auth ----
+const WEBHOOK_AUTH_HEADER = {
+  Authorization: `Basic ${Buffer.from(
+    `${process.env.TRENDYOL_WEBHOOK_API_KEY}:${process.env.TRENDYOL_WEBHOOK_API_SECRET}`
+  ).toString("base64")}`,
+  "User-Agent": "ShopTruckWebhook",
+  Accept: "application/json",
+};
+
 app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Çalışıyor 🚀");
 });
 
-// ✅ Orders endpoint (son 15 gün)
+// ✅ Orders endpoint
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     let allOrders = [];
@@ -79,21 +88,17 @@ app.get("/api/trendyol/orders", async (req, res) => {
     res.json(allOrders);
   } catch (error) {
     console.error("Orders API Error:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).json({
-      error: "Orders fetch failed",
-    });
+    res
+      .status(error.response?.status || 500)
+      .json(error.response?.data || { error: "Orders fetch failed" });
   }
 });
 
-// ✅ Vendor Info endpoint (Satıcı Bilgileri - adresler)
+// ✅ Vendor Info endpoint
 app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   try {
     const url = `${TRENDYOL_INT_BASE_URL}/integration/sellers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
-
-    const response = await axios.get(url, {
-      headers: VENDOR_AUTH_HEADER,
-    });
-
+    const response = await axios.get(url, { headers: VENDOR_AUTH_HEADER });
     res.json(response.data);
   } catch (error) {
     console.error("Vendor API Error:", error.response?.data || error.message);
@@ -103,6 +108,28 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   }
 });
 
+// ✅ Webhook Endpoint (test amaçlı)
+app.post("/api/trendyol/webhook", (req, res) => {
+  console.log("📩 Yeni Webhook Geldi:", JSON.stringify(req.body, null, 2));
+  res.status(200).json({ success: true });
+});
+
+// ✅ Webhook Status Test (manuel kontrol)
+app.get("/api/trendyol/webhook/status", async (req, res) => {
+  try {
+    const response = await axios.get(
+      `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_WEBHOOK_SELLER_ID}/webhooks`,
+      { headers: WEBHOOK_AUTH_HEADER }
+    );
+    res.json(response.data);
+  } catch (error) {
+    console.error("Webhook Status Error:", error.response?.data || error.message);
+    res
+      .status(error.response?.status || 500)
+      .json(error.response?.data || { error: "Webhook status fetch failed" });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Backend running at http://localhost:${PORT}`);
-});PORT=8080
+});
