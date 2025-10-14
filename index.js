@@ -36,7 +36,7 @@ try {
 const db = admin.apps.length ? admin.firestore() : null;
 
 /* ===========================
-   ✉️  NODEMAILER
+   ✉️ NODEMAILER
 =========================== */
 const mailer = nodemailer.createTransport({
   host: process.env.MAIL_HOST,
@@ -49,95 +49,9 @@ const mailer = nodemailer.createTransport({
 });
 
 /* ===========================
-   🌸 ÇİÇEKSEPETİ ENTEGRASYONU
-   (Yeni POST endpoint’leri)
+   🛒 TRENDYOL ENTEGRASYONU
 =========================== */
-/* ===========================
-   🌸 ÇİÇEKSEPETİ ENTEGRASYONU
-=========================== */
-const CICEKSEPETI_BASE_URL =
-  (process.env.CICEKSEPETI_BASE_URL || "https://apis.ciceksepeti.com/api/v1").replace(/\/+$/, "");
 
-const CICEKSEPETI_AUTH_HEADER = {
-  "x-api-key": process.env.CICEKSEPETI_API_KEY,
-  "Content-Type": "application/json",
-  Accept: "application/json",
-  "User-Agent": "ShopTruckCicekSepeti",
-};
-
-// ✅ Ping testi
-// ✅ Ping testi
-app.get("/api/ciceksepeti/ping", async (req, res) => {
-  try {
-    const url = `${CICEKSEPETI_BASE_URL}/merchant/account`;
-    const r = await axios.get(url, {
-      headers: {
-        "x-api-key": process.env.CICEKSEPETI_API_KEY,
-        "Content-Type": "application/json",
-      },
-      httpsAgent,
-    });
-    res.json({ message: "✅ ÇiçekSepeti bağlantısı aktif", data: r.data });
-  } catch (err) {
-    res.status(500).json({
-      error: "Ping başarısız",
-      details: err.response?.data || err.message,
-    });
-  }
-});
-
-
-// ✅ Siparişleri getir
-app.get("/api/ciceksepeti/orders", async (req, res) => {
-  try {
-    const url = `${CICEKSEPETI_BASE_URL}/merchant/orders`;
-    const r = await axios.get(url, {
-      headers: {
-        "x-api-key": process.env.CICEKSEPETI_API_KEY,
-        "Content-Type": "application/json",
-      },
-      params: {
-        sellerId: process.env.CICEKSEPETI_SELLER_ID,
-      },
-      httpsAgent,
-    });
-    res.json({ message: "✅ Sipariş listesi alındı", data: r.data });
-  } catch (err) {
-    res.status(500).json({
-      error: "ÇiçekSepeti siparişleri alınamadı",
-      details: err.response?.data || err.message,
-    });
-  }
-});
-
-// ✅ Ürünleri getir
-app.get("/api/ciceksepeti/products", async (req, res) => {
-  try {
-    const url = `${CICEKSEPETI_BASE_URL}/merchant/products`;
-    const r = await axios.get(url, {
-      headers: {
-        "x-api-key": process.env.CICEKSEPETI_API_KEY,
-        "Content-Type": "application/json",
-      },
-      params: {
-        sellerId: process.env.CICEKSEPETI_SELLER_ID,
-      },
-      httpsAgent,
-    });
-    res.json({ message: "✅ Ürün listesi alındı", data: r.data });
-  } catch (err) {
-    res.status(500).json({
-      error: "ÇiçekSepeti ürünleri alınamadı",
-      details: err.response?.data || err.message,
-    });
-  }
-});
-
-/*
-
-/* ===========================
-   🛒 TRENDYOL (mevcut hali)
-=========================== */
 const ORDER_AUTH_HEADER = {
   Authorization:
     "Basic " +
@@ -178,7 +92,7 @@ const PRODUCT_AUTH_HEADER = {
   Accept: "application/json",
 };
 
-// (eski yardımcı fonksiyonun bırakıyorum — gerekirse düzenlersin)
+// 🔍 Sipariş detaylarını getir
 async function fetchOrderDetailsByNumber(orderNumber) {
   const DAY = 24 * 60 * 60 * 1000;
   const now = Date.now();
@@ -205,7 +119,7 @@ async function fetchOrderDetailsByNumber(orderNumber) {
 
 /* ---------- Root ---------- */
 app.get("/", (req, res) => {
-  res.send("✅ ShopTruck Backend Aktif (Firebase + Webhook) 🚀");
+  res.send("✅ ShopTruck Backend Aktif (Firebase + Trendyol) 🚀");
 });
 
 /* ---------- Orders ---------- */
@@ -248,28 +162,18 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
     const r = await axios.get(url, { headers: VENDOR_AUTH_HEADER });
 
     if (typeof r.data !== "object" || r.data.includes?.("<html")) {
-      console.warn("⚠️ Trendyol Vendor API HTML döndürdü (Cloudflare).");
       return res.json({
         addresses: [],
         message: "Trendyol Vendor API HTML döndürdü (Cloudflare engeli olabilir).",
       });
     }
 
-    if (!r.data || Object.keys(r.data).length === 0) {
-      console.warn("⚠️ Vendor addresses boş döndü.");
-      return res.json({ addresses: [], message: "Boş sonuç döndü" });
-    }
-
-    if (typeof r.data === "string" && r.data.includes("<html")) {
-      console.warn("⚠️ Trendyol HTML döndürdü (Cloudflare Engeli)");
-      return res.json({ addresses: [], message: "Trendyol engeli (HTML döndü)" });
-    }
     res.json(r.data);
   } catch (err) {
     console.error("🛑 Vendor API Error:", err.response?.data || err.message);
     res.status(200).json({
       addresses: [],
-      message: "Trendyol Vendor API şu anda erişilemiyor (Cloudflare engeli olabilir).",
+      message: "Trendyol Vendor API şu anda erişilemiyor.",
       error: String(err.response?.data || err.message).substring(0, 500),
     });
   }
@@ -313,24 +217,6 @@ app.post("/api/trendyol/webhook", async (req, res) => {
     };
 
     if (db) await db.collection("WebhookLogs").add(doc);
-
-    const title = "📦 Yeni Trendyol Siparişi";
-    const body = `#${orderNumber || "N/A"}\n👤 ${doc.customer || "Bilinmiyor"}\n🛍️ ${
-      doc.productName || "-"
-    }\n💰 ${doc.grossAmount || 0}₺\nDurum: ${doc.status || "-"}`;
-
-    if (admin.apps.length)
-      await admin.messaging().send({
-        topic: "trendyol",
-        notification: { title, body },
-        data: {
-          orderNumber: String(orderNumber || ""),
-          status: String(doc.status || ""),
-          customer: String(doc.customer || "Bilinmiyor"),
-          productName: String(doc.productName || ""),
-          amount: String(doc.grossAmount || "0"),
-        },
-      });
 
     try {
       await mailer.sendMail({
@@ -382,16 +268,6 @@ app.get("/api/trendyol/products", async (req, res) => {
       params: { page: 0, size: 100 },
       httpsAgent,
     });
-
-    console.log("🟢 Trendyol ürün cevabı geldi:", response.status);
-
-    if (typeof response.data !== "object" || !response.data.content) {
-      console.warn("⚠️ Trendyol HTML veya beklenmedik içerik döndürdü.");
-      return res.status(200).json({
-        error: "Cloudflare veya Trendyol HTML döndürdü",
-        raw: typeof response.data === "string" ? response.data.slice(0, 200) : response.data,
-      });
-    }
 
     const products =
       response.data.content.map((p) => ({
