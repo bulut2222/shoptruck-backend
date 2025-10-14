@@ -132,7 +132,7 @@ app.get("/api/ciceksepeti/products", async (req, res) => {app.get("/api/ciceksep
     });
   }
 });
-
+/*
 
 /* ===========================
    🛒 TRENDYOL (mevcut hali)
