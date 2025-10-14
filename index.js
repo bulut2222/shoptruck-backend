@@ -66,11 +66,18 @@ const CICEKSEPETI_AUTH_HEADER = {
 };
 
 // ✅ Ping testi
+app.get("/api/ciceksepeti/ping", async (req, res) => {// ✅ Ping testi
 app.get("/api/ciceksepeti/ping", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/health`;
-    const r = await axios.get(url, { httpsAgent });
-    res.json({ message: "✅ ÇiçekSepeti test bağlantısı aktif", data: r.data });
+    const url = `${CICEKSEPETI_BASE_URL}/merchant/account`;
+    const r = await axios.get(url, {
+      headers: {
+        "x-api-key": process.env.CICEKSEPETI_API_KEY,
+        "Content-Type": "application/json",
+      },
+      httpsAgent,
+    });
+    res.json({ message: "✅ ÇiçekSepeti bağlantısı aktif", data: r.data });
   } catch (err) {
     res.status(500).json({
       error: "Ping başarısız",
@@ -82,9 +89,15 @@ app.get("/api/ciceksepeti/ping", async (req, res) => {
 // ✅ Siparişleri getir
 app.get("/api/ciceksepeti/orders", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/orders`;
+    const url = `${CICEKSEPETI_BASE_URL}/merchant/orders`;
     const r = await axios.get(url, {
-      headers: { "x-api-key": process.env.CICEKSEPETI_API_KEY },
+      headers: {
+        "x-api-key": process.env.CICEKSEPETI_API_KEY,
+        "Content-Type": "application/json",
+      },
+      params: {
+        sellerId: process.env.CICEKSEPETI_SELLER_ID,
+      },
       httpsAgent,
     });
     res.json({ message: "✅ Sipariş listesi alındı", data: r.data });
@@ -99,9 +112,15 @@ app.get("/api/ciceksepeti/orders", async (req, res) => {
 // ✅ Ürünleri getir
 app.get("/api/ciceksepeti/products", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/products`;
+    const url = `${CICEKSEPETI_BASE_URL}/merchant/products`;
     const r = await axios.get(url, {
-      headers: { "x-api-key": process.env.CICEKSEPETI_API_KEY },
+      headers: {
+        "x-api-key": process.env.CICEKSEPETI_API_KEY,
+        "Content-Type": "application/json",
+      },
+      params: {
+        sellerId: process.env.CICEKSEPETI_SELLER_ID,
+      },
       httpsAgent,
     });
     res.json({ message: "✅ Ürün listesi alındı", data: r.data });
@@ -112,6 +131,7 @@ app.get("/api/ciceksepeti/products", async (req, res) => {
     });
   }
 });
+
 /*
 
 /* ===========================
