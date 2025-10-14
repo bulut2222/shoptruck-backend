@@ -87,104 +87,52 @@ function tryRateLimit(res, payload) {
 // ✅ Ping: 1 ürün çekerek basit bağlantı testi
 app.get("/api/ciceksepeti/ping", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/merchant/account`;
-    const r = await axios.post(
-      url,
-      {
-        SellerId: process.env.CICEKSEPETI_SELLER_ID,
-        Page: 1,
-        PageSize: 1,
-      },
-      { headers: CICEKSEPETI_AUTH_HEADER, httpsAgent }
-    );
-
-    if (tryRateLimit(res, r.data)) return;
-
-    res.json({ message: "✅ ÇiçekSepeti API bağlantısı aktif", sample: r.data });
+    const url = `${CICEKSEPETI_BASE_URL}/health`; // test için mevcut endpoint
+    const r = await axios.get(url, { httpsAgent });
+    res.json({ message: "✅ ÇiçekSepeti test bağlantısı aktif", data: r.data });
   } catch (err) {
-    const payload = err.response?.data || err.message;
-    if (tryRateLimit(res, payload)) return;
-    res.status(500).json({ error: "Ping başarısız", details: payload });
+    res.status(500).json({
+      error: "Ping başarısız",
+      details: err.response?.data || err.message,
+    });
   }
 });
 
 // ✅ Siparişleri getir (Yeni endpoint)
-app.get("/api/ciceksepeti/orders", async (req, res) => {
+app.get("/api/ciceksepeti/orders", async (req, res) => {app.get("/api/ciceksepeti/orders", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/merchant/orders?page=1&pageSize=20`;
-
-    const r = await axios.post(
-      url,
-      {
-        SellerId: process.env.CICEKSEPETI_SELLER_ID,
-        Page: Number(req.query.page || 1),
-        PageSize: Number(req.query.pageSize || 20),
-      },
-      { headers: CICEKSEPETI_AUTH_HEADER, httpsAgent }
-    );
-
-    if (tryRateLimit(res, r.data)) return;
-
-    // beklenen tipik şema: { Data: { Items: [...] } }
-    const items = r.data?.Data?.Items || r.data?.data || r.data?.items || [];
-    const orders = items.map((o) => ({
-      orderNumber: o.OrderNumber ?? o.orderNumber,
-      customerName: o.CustomerName ?? o.customerName,
-      totalAmount: o.TotalAmount ?? o.totalAmount,
-      orderDate: o.OrderDate ?? o.orderDate,
-      status: o.Status ?? o.status,
-    }));
-
-    res.json(orders);
+    const url = `${CICEKSEPETI_BASE_URL}/orders`;
+    const r = await axios.get(url, {
+      headers: { "x-api-key": process.env.CICEKSEPETI_API_KEY },
+      httpsAgent,
+    });
+    res.json({ message: "✅ Sipariş listesi alındı", data: r.data });
   } catch (err) {
-    const payload = err.response?.data || err.message;
-    if (tryRateLimit(res, payload)) return;
-    const status = err.response?.status || 500;
-    if (status === 404) {
-      return res.status(404).json({ error: "Orders endpoint bulunamadı (404)" });
-    }
-    res.status(500).json({ error: "ÇiçekSepeti siparişleri alınamadı", details: payload });
+    res.status(500).json({
+      error: "ÇiçekSepeti siparişleri alınamadı",
+      details: err.response?.data || err.message,
+    });
   }
 });
+
 
 // ✅ Ürünleri getir (Yeni endpoint)
-app.get("/api/ciceksepeti/products", async (req, res) => {
+app.get("/api/ciceksepeti/products", async (req, res) => {app.get("/api/ciceksepeti/products", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/merchant/products?page=1&pageSize=50`;
-    const r = await axios.post(
-      url,
-      {
-        SellerId: process.env.CICEKSEPETI_SELLER_ID,
-        Page: Number(req.query.page || 1),
-        PageSize: Number(req.query.pageSize || 50),
-      },
-      { headers: CICEKSEPETI_AUTH_HEADER, httpsAgent }
-    );
-
-    if (tryRateLimit(res, r.data)) return;
-
-    const items = r.data?.Data?.Items || r.data?.data || r.data?.items || [];
-    const products =
-      items.map((p) => ({
-        id: p.ProductId ?? p.productId ?? p.Id,
-        name: p.ProductName ?? p.productName ?? p.Name,
-        price: p.Price ?? p.price,
-        stock: p.StockQuantity ?? p.stockQuantity,
-        category: p.CategoryName ?? p.categoryName,
-        barcode: p.Barcode ?? p.barcode,
-      })) || [];
-
-    res.json(products);
+    const url = `${CICEKSEPETI_BASE_URL}/products`;
+    const r = await axios.get(url, {
+      headers: { "x-api-key": process.env.CICEKSEPETI_API_KEY },
+      httpsAgent,
+    });
+    res.json({ message: "✅ Ürün listesi alındı", data: r.data });
   } catch (err) {
-    const payload = err.response?.data || err.message;
-    if (tryRateLimit(res, payload)) return;
-    const status = err.response?.status || 500;
-    if (status === 404) {
-      return res.status(404).json({ error: "Products endpoint bulunamadı (404)" });
-    }
-    res.status(500).json({ error: "ÇiçekSepeti ürünleri alınamadı", details: payload });
+    res.status(500).json({
+      error: "ÇiçekSepeti ürünleri alınamadı",
+      details: err.response?.data || err.message,
+    });
   }
 });
+
 
 /* ===========================
    🛒 TRENDYOL (mevcut hali)
