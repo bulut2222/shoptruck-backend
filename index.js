@@ -1,12 +1,13 @@
 import express from "express";
 import axios from "axios";
 import https from "https";
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 import dotenv from "dotenv";
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
 
+const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 dotenv.config();
+
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -63,13 +64,14 @@ app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Aktif (Sipariş + Satıcı Bilgisi + Webhook) 🚀");
 });
 
-/* ---------- Sipariş Listesi (Son 15 Gün) ---------- */
+/* ---------- 📦 Sipariş Listesi (Son 15 Gün) ---------- */
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     const now = Date.now();
     const fifteenDaysAgo = now - 15 * 24 * 60 * 60 * 1000;
 
     const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`;
+
     const r = await axios.get(url, {
       headers: AUTH_HEADER,
       params: {
@@ -85,20 +87,18 @@ app.get("/api/trendyol/orders", async (req, res) => {
 
     const orders =
       r.data?.content?.map((o) => ({
-        id: o.id,
-        customer: `${o.customerFirstName || ""} ${o.customerLastName || ""}`.trim(),
-        totalPrice: o.totalPrice,
-        orderDate: o.orderDate,
-        status: o.status,
-        cargoTrackingNumber: o.cargoTrackingNumber,
-        city: o.shipmentAddress?.city,
+        orderNumber: o.id,
+        customerFirstName: o.customerFirstName || "",
+        customerLastName: o.customerLastName || "",
+        productName:
+          o.lines && o.lines.length > 0 ? o.lines[0].productName : "—",
+        grossAmount: o.totalPrice || 0,
+        status: o.status || "Unknown",
+        orderDate: o.orderDate || Date.now(),
       })) || [];
 
-    res.json({
-      message: "✅ Trendyol son 15 gün sipariş listesi alındı",
-      count: orders.length,
-      data: orders,
-    });
+    // 🔹 Android uygulaması doğrudan List<Order> beklediği için sadece dizi dönüyoruz
+    res.json(orders);
   } catch (err) {
     console.error("🛑 Trendyol sipariş hatası:", err.response?.data || err.message);
     res.status(500).json({
@@ -108,23 +108,18 @@ app.get("/api/trendyol/orders", async (req, res) => {
   }
 });
 
-/* ---------- Satıcı (Vendor) Adresleri ---------- */
+/* ---------- 🏪 Satıcı (Vendor) Adresleri ---------- */
 app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   try {
     const url = `https://api.trendyol.com/integration/sellers/${process.env.TRENDYOL_SELLER_ID}/addresses`;
     const r = await axios.get(url, { headers: AUTH_HEADER, httpsAgent });
 
-    if (!r.data || typeof r.data !== "object" || Object.keys(r.data).length === 0) {
-      return res.status(200).json({
-        message: "⚠️ Satıcı adres bilgisi bulunamadı",
-        addresses: [],
-      });
+    if (!r.data || typeof r.data !== "object") {
+      return res.json([]);
     }
 
-    res.json({
-      message: "✅ Trendyol satıcı adres bilgileri başarıyla alındı",
-      addresses: r.data,
-    });
+    // Android uyumlu sade dönüş
+    res.json(r.data);
   } catch (err) {
     console.error("🛑 Vendor API hatası:", err.response?.data || err.message);
     res.status(500).json({
@@ -134,14 +129,13 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   }
 });
 
-/* ---------- 📦 Webhook Endpoint (Firebase + Mail) ---------- */
+/* ---------- 🚀 Webhook (Firebase + Mail) ---------- */
 app.post("/api/trendyol/webhook", async (req, res) => {
   try {
     const data = req.body || {};
 
     console.log("📩 Yeni Webhook alındı:", JSON.stringify(data, null, 2));
 
-    // 🔹 Firestore'a kaydet
     if (db) {
       await db.collection("WebhookLogs").add({
         data,
@@ -149,15 +143,11 @@ app.post("/api/trendyol/webhook", async (req, res) => {
       });
     }
 
-    // 🔹 Mail gönder
     await mailer.sendMail({
       from: process.env.MAIL_FROM || process.env.MAIL_USER,
       to: process.env.MAIL_TO || process.env.MAIL_USER,
       subject: "📦 Yeni Trendyol Webhook Bildirimi",
-      html: `
-        <h3>Yeni Webhook Alındı</h3>
-        <pre>${JSON.stringify(data, null, 2)}</pre>
-      `,
+      html: `<h3>Yeni Webhook Alındı</h3><pre>${JSON.stringify(data, null, 2)}</pre>`,
     });
 
     res.json({ success: true, message: "Webhook başarıyla işlendi." });
