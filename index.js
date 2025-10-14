@@ -110,3 +110,39 @@ app.get("/api/trendyol/products", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Backend aktif: http://localhost:${PORT}`);
 });
+/* ---------- Sipariş Listesi ---------- */
+app.get("/api/trendyol/orders", async (req, res) => {
+  try {
+    const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`;
+    console.log("🟢 Trendyol sipariş isteği:", url);
+
+    const r = await axios.get(url, {
+      headers: AUTH_HEADER,
+      params: { orderByField: "PackageLastModifiedDate", page: 0, size: 50 },
+      httpsAgent,
+    });
+
+    const orders =
+      r.data?.content?.map((o) => ({
+        id: o.id,
+        customer: o.customerFirstName + " " + o.customerLastName,
+        totalPrice: o.totalPrice,
+        orderDate: o.orderDate,
+        status: o.status,
+        cargoTrackingNumber: o.cargoTrackingNumber,
+        city: o.shipmentAddress?.city,
+      })) || [];
+
+    res.json({
+      message: "✅ Trendyol sipariş listesi alındı",
+      count: orders.length,
+      data: orders,
+    });
+  } catch (err) {
+    console.error("🛑 Trendyol sipariş hatası:", err.response?.data || err.message);
+    res.status(500).json({
+      error: "Sipariş listesi alınamadı",
+      details: err.response?.data || err.message,
+    });
+  }
+});
