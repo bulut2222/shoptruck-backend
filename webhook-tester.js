@@ -34,4 +34,4 @@ async function sendWebhook() {
   }
 }
 
-sendWebhook();  bunu yaptım bu geldi
+sendWebhook(); // bunu yaptım bu geldi
