@@ -47,7 +47,8 @@ const mailer = nodemailer.createTransport({
 // =============================
 // 🌸 ÇİÇEKSEPETİ ENTEGRASYONU
 // =============================
-const CICEKSEPETI_BASE_URL = process.env.CICEKSEPETI_BASE_URL || "https://api.ciceksepeti.com/api/v1";
+const CICEKSEPETI_BASE_URL = process.env.CICEKSEPETI_BASE_URL || "https://apis.ciceksepeti.com/api/v1";
+
 
 const CICEKSEPETI_AUTH_HEADER = {
   "x-api-key": process.env.CICEKSEPETI_API_KEY,
@@ -59,7 +60,7 @@ const CICEKSEPETI_AUTH_HEADER = {
 // ✅ Test bağlantısı (satıcı bilgisi)
 app.get("/api/ciceksepeti/ping", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/Sellers/${process.env.CICEKSEPETI_SELLER_ID}`;
+    const url = `${CICEKSEPETI_BASE_URL}/sellers/${process.env.CICEKSEPETI_SELLER_ID}`;
     const response = await axios.get(url, {
       headers: CICEKSEPETI_AUTH_HEADER,
       httpsAgent,
@@ -88,7 +89,8 @@ app.get("/api/ciceksepeti/ping", async (req, res) => {
 // ✅ Siparişleri getir
 app.get("/api/ciceksepeti/orders", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/Orders?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=1&pageSize=20`;
+    const url = `${CICEKSEPETI_BASE_URL}/orders?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=1&pageSize=20`;
+
 
     const response = await axios.get(url, {
       headers: CICEKSEPETI_AUTH_HEADER,
@@ -129,7 +131,8 @@ app.get("/api/ciceksepeti/orders", async (req, res) => {
 // ✅ Ürünleri getir
 app.get("/api/ciceksepeti/products", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/Products?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=1&pageSize=50`;
+    const url = `${CICEKSEPETI_BASE_URL}/products?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=1&pageSize=50`;
+
 
     const response = await axios.get(url, {
       headers: CICEKSEPETI_AUTH_HEADER,
