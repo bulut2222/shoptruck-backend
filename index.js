@@ -111,11 +111,11 @@ app.get("/api/trendyol/products", async (req, res) => {
 /* ---------- Sipariş Listesi (Son 100 Gün - Yeni Siparişler Üstte) ---------- */
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
-    const now = Date.now(); // şu an
-    const hundredDaysAgo = now - 100 * 24 * 60 * 60 * 1000; // 100 gün önce
+    const now = Date.now();
+    const hundredDaysAgo = now - 100 * 24 * 60 * 60 * 1000;
 
     const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`;
-    console.log("🟢 Trendyol sipariş isteği (100 günlük):", url);
+    console.log("🟢 Trendyol sipariş isteği (100 gün - TÜM DURUMLAR):", url);
     console.log(`📅 Aralık: ${hundredDaysAgo} → ${now}`);
 
     const r = await axios.get(url, {
@@ -123,42 +123,39 @@ app.get("/api/trendyol/orders", async (req, res) => {
       params: {
         startDate: hundredDaysAgo,
         endDate: now,
-        orderByField: "OrderDate",
-        orderByDirection: "DESC", // ⬅️ en yeni sipariş en üstte
+        orderByField: "CreatedDate",
+        orderByDirection: "DESC",
         page: 0,
-        size: 100,
+        size: 200,
+        // ⚠️ status parametresi gönderilmiyor (tüm durumlar gelsin)
       },
       httpsAgent,
     });
 
-    // Gelen siparişleri sıralı döndürüyoruz
     let orders =
-      r.data?.content?.map((o) => ({
-        id: o.id,
-        customer: `${o.customerFirstName || ""} ${o.customerLastName || ""}`.trim(),
-        totalPrice: o.totalPrice,
-        orderDate: o.orderDate,
-        status: o.status,
-        cargoTrackingNumber: o.cargoTrackingNumber,
-        city: o.shipmentAddress?.city,
-      })) || [];
-
-    // Ek güvenlik için client tarafında da tarihe göre sıralayalım
-    orders = orders.sort((a, b) => b.orderDate - a.orderDate);
+      r.data?.content
+        ?.map((o) => ({
+          id: o.id,
+          customer: `${o.customerFirstName || ""} ${o.customerLastName || ""}`.trim(),
+          totalPrice: o.totalPrice,
+          orderDate: o.orderDate,
+          status: o.status,
+          cargoTrackingNumber: o.cargoTrackingNumber,
+          city: o.shipmentAddress?.city,
+        }))
+        .sort((a, b) => b.orderDate - a.orderDate) || [];
 
     res.json({
-      message: "✅ Trendyol son 100 gün sipariş listesi (yeniden eskiye) alındı",
+      message: "✅ Trendyol son 100 gün TÜM sipariş listesi (yeniden eskiye) alındı",
       count: orders.length,
       data: orders,
     });
   } catch (err) {
-    console.error("🛑 Trendyol sipariş hatası:", err.response?.data || err.message);
-    res.status(500).json({
-      error: "Sipariş listesi alınamadı",
-      details: err.response?.data || err.message,
-    });
+    console.error("🛑 Trendyol sipariş hatası:", err.message);
+    res.status(500).json({ error: "Trendyol siparişleri alınamadı", details: err.message });
   }
 });
+
 
 
 
