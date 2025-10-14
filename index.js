@@ -165,86 +165,9 @@ app.get("/api/ciceksepeti/products", async (req, res) => {
   }
 });
 
-// ✅ Siparişleri getir
-app.get("/api/ciceksepeti/orders", async (req, res) => {
-  try {
-    const url = `${CICEKSEPETI_BASE_URL}/Orders?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=0&pageSize=20`;
-    const response = await axios.get(url, {
-      headers: CICEKSEPETI_AUTH_HEADER,
-      httpsAgent,
-    });
 
-    if (response.data?.Message?.includes("Limit aşımı")) {
-      console.warn("⚠️ Rate Limit Aşıldı - 10 dakika beklenmeli");
-      return res.status(429).json({
-        error: "Limit aşımı! Aynı isteği 10 dakikada bir atabilirsiniz.",
-        retryAfter: "10 dakika",
-      });
-    }
 
-    const orders =
-      response.data?.data?.map((o) => ({
-        orderNumber: o.orderNumber,
-        customerName: o.customerName,
-        totalAmount: o.totalAmount,
-        orderDate: o.orderDate,
-        status: o.status,
-      })) || [];
 
-    res.json(orders);
-  } catch (err) {
-    const status = err.response?.status || 500;
-    if (status === 404) {
-      console.error("⚠️ Orders 404: endpoint bulunamadı");
-      return res.status(404).json({ error: "Orders endpoint bulunamadı (404)" });
-    }
-    res.status(500).json({
-      error: "Siparişler alınamadı",
-      details: err.response?.data || err.message,
-    });
-  }
-});
-
-// ✅ Ürünleri getir
-app.get("/api/ciceksepeti/products", async (req, res) => {
-  try {
-    const url = `${CICEKSEPETI_BASE_URL}/Products?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=0&pageSize=50`;
-    const response = await axios.get(url, {
-      headers: CICEKSEPETI_AUTH_HEADER,
-      httpsAgent,
-    });
-
-    if (response.data?.Message?.includes("Limit aşımı")) {
-      console.warn("⚠️ Rate Limit Aşıldı - 10 dakika beklenmeli");
-      return res.status(429).json({
-        error: "Limit aşımı! Aynı isteği 10 dakikada bir atabilirsiniz.",
-        retryAfter: "10 dakika",
-      });
-    }
-
-    const products =
-      response.data?.data?.map((p) => ({
-        id: p.productId,
-        name: p.productName,
-        price: p.price,
-        stock: p.stockQuantity,
-        category: p.categoryName,
-        barcode: p.barcode,
-      })) || [];
-
-    res.json(products);
-  } catch (err) {
-    const status = err.response?.status || 500;
-    if (status === 404) {
-      console.error("⚠️ Products 404: endpoint bulunamadı");
-      return res.status(404).json({ error: "Products endpoint bulunamadı (404)" });
-    }
-    res.status(500).json({
-      error: "Ürünler alınamadı",
-      details: err.response?.data || err.message,
-    });
-  }
-});
 
 // ---------- AUTH HEADERS ----------
 const ORDER_AUTH_HEADER = {
@@ -497,7 +420,7 @@ app.get("/api/trendyol/products", async (req, res) => {
         Accept: "application/json",
       },
       params: { page: 0, size: 100 },
-      httpsAgent: agent,
+      httpsAgent,
     });
 
     console.log("🟢 Trendyol ürün cevabı geldi:", response.status);
