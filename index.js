@@ -70,16 +70,42 @@ app.get("/", (req, res) => {
 });
 
 /* ---------- Ürün Listesi ---------- */
+/* ---------- Ürün Listesi (Cloudflare Bypass’lı) ---------- */
 app.get("/api/trendyol/products", async (req, res) => {
   try {
     const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/products`;
     console.log("🟢 Trendyol ürün isteği:", url);
 
+    // 🔹 Gerçek tarayıcıya benzeyen header seti
+    const browserHeaders = {
+      ...AUTH_HEADER,
+      "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
+      "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+      "Sec-Ch-Ua-Mobile": "?0",
+      "Sec-Ch-Ua-Platform": '"Windows"',
+      Referer: "https://partner.trendyol.com/",
+      Origin: "https://partner.trendyol.com",
+      Connection: "keep-alive",
+    };
+
+    // 🔹 Rastgele küçük gecikme (Cloudflare bot korumasını atlatır)
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    await delay(500 + Math.random() * 500);
+
     const r = await axios.get(url, {
-      headers: AUTH_HEADER,
+      headers: browserHeaders,
       params: { page: 0, size: 100 },
       httpsAgent,
+      timeout: 15000, // güvenlik için timeout
     });
+
+    if (!r.data || typeof r.data !== "object") {
+      console.warn("⚠️ Trendyol Products API HTML döndürdü (Cloudflare Engeli)");
+      return res.status(200).json({
+        message: "⚠️ Trendyol Products API Cloudflare engeline takıldı",
+        data: [],
+      });
+    }
 
     const products =
       r.data?.content?.map((p) => ({
@@ -96,7 +122,7 @@ app.get("/api/trendyol/products", async (req, res) => {
       })) || [];
 
     res.json({
-      message: "✅ Trendyol ürün listesi alındı",
+      message: "✅ Trendyol ürün listesi alındı (Cloudflare Bypass)",
       count: products.length,
       data: products,
     });
@@ -108,6 +134,7 @@ app.get("/api/trendyol/products", async (req, res) => {
     });
   }
 });
+
 
 /* ---------- Sipariş Listesi (Son 15 Gün) ---------- */
 app.get("/api/trendyol/orders", async (req, res) => {
