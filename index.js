@@ -66,7 +66,7 @@ const CICEKSEPETI_AUTH_HEADER = {
 };
 
 // ✅ Ping testi
-app.get("/api/ciceksepeti/ping", async (req, res) => {// ✅ Ping testi
+// ✅ Ping testi
 app.get("/api/ciceksepeti/ping", async (req, res) => {
   try {
     const url = `${CICEKSEPETI_BASE_URL}/merchant/account`;
@@ -85,6 +85,7 @@ app.get("/api/ciceksepeti/ping", async (req, res) => {
     });
   }
 });
+
 
 // ✅ Siparişleri getir
 app.get("/api/ciceksepeti/orders", async (req, res) => {
