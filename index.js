@@ -107,25 +107,22 @@ app.get("/api/trendyol/products", async (req, res) => {
 });
 
 /* ---------- Sipariş Listesi ---------- */
-app.get("/api/trendyol/orders", async (req, res) => {/* ---------- Sipariş Listesi (Son 15 Gün) ---------- */
+/* ---------- Sipariş Listesi (Son 15 Gün) ---------- */
+app.get("/api/trendyol/orders", async (req, res) => {
   try {
-    const now = new Date();
-    const fifteenDaysAgo = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
-
-    // Tarihleri Trendyol API formatına çeviriyoruz (ISO formatı)
-    const startDate = fifteenDaysAgo.toISOString();
-    const endDate = now.toISOString();
+    const now = Date.now(); // şu an
+    const fifteenDaysAgo = now - 15 * 24 * 60 * 60 * 1000; // 15 gün önce
 
     const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`;
     console.log("🟢 Trendyol sipariş isteği (15 günlük):", url);
-    console.log(`📅 Aralık: ${startDate} → ${endDate}`);
+    console.log(`📅 Aralık: ${fifteenDaysAgo} → ${now}`);
 
     const r = await axios.get(url, {
       headers: AUTH_HEADER,
       params: {
+        startDate: fifteenDaysAgo,
+        endDate: now,
         orderByField: "PackageLastModifiedDate",
-        startDate,
-        endDate,
         page: 0,
         size: 100,
       },
@@ -156,6 +153,7 @@ app.get("/api/trendyol/orders", async (req, res) => {/* ---------- Sipariş List
     });
   }
 });
+
 
 
 /* ---------- Sunucu ---------- */
