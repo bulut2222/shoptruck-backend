@@ -6,7 +6,6 @@ import dotenv from "dotenv";
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
 
-
 dotenv.config();
 const app = express();
 app.use(express.json());
@@ -14,9 +13,12 @@ app.use(express.urlencoded({ extended: true }));
 
 const PORT = process.env.PORT || 8080;
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
-// ---------- FIREBASE ADMIN ----------
+
+/* ===========================
+   🔐 FIREBASE ADMIN
+=========================== */
 try {
-  const firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
+  const firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
   if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert({
@@ -31,10 +33,11 @@ try {
   console.error("🛑 Firebase Admin başlatılamadı:", error.message);
 }
 
-// ---------- Firestore ----------
 const db = admin.apps.length ? admin.firestore() : null;
 
-// ---------- Nodemailer (Gmail SMTP) ----------
+/* ===========================
+   ✉️  NODEMAILER
+=========================== */
 const mailer = nodemailer.createTransport({
   host: process.env.MAIL_HOST,
   port: Number(process.env.MAIL_PORT || 465),
@@ -44,11 +47,13 @@ const mailer = nodemailer.createTransport({
     pass: process.env.MAIL_PASS,
   },
 });
-// =============================
-// 🌸 ÇİÇEKSEPETİ ENTEGRASYONU
-// =============================
-const CICEKSEPETI_BASE_URL = process.env.CICEKSEPETI_BASE_URL || "https://apis.ciceksepeti.com/api/v1";
 
+/* ===========================
+   🌸 ÇİÇEKSEPETİ ENTEGRASYONU
+   (Yeni POST endpoint’leri)
+=========================== */
+const CICEKSEPETI_BASE_URL =
+  (process.env.CICEKSEPETI_BASE_URL || "https://apis.ciceksepeti.com/api/v1").replace(/\/+$/, "");
 
 const CICEKSEPETI_AUTH_HEADER = {
   "x-api-key": process.env.CICEKSEPETI_API_KEY,
@@ -57,125 +62,132 @@ const CICEKSEPETI_AUTH_HEADER = {
   "User-Agent": "ShopTruckCicekSepeti",
 };
 
-// ✅ Test bağlantısı (satıcı bilgisi)
+// küçük yardımcı: rate limit mesajını sez ve 429 dön
+function tryRateLimit(res, payload) {
+  const txt =
+    (typeof payload === "string" && payload) ||
+    payload?.Message ||
+    payload?.message ||
+    payload?.error ||
+    "";
+
+  if (typeof txt === "string" && /limit|aşım|10\s*dakika/i.test(txt)) {
+    // kalan süreyi (saniye) yakalamaya çalış
+    const m = txt.match(/(\d+)\s*saniye/i);
+    const retrySec = m ? Number(m[1]) : 600;
+    return res.status(429).json({
+      error: "Limit aşımı! Aynı endpoint'e 10 dakikada 1 kez istek atabilirsiniz.",
+      retryAfterSeconds: retrySec,
+      details: txt,
+    });
+  }
+  return null;
+}
+
+// ✅ Ping: 1 ürün çekerek basit bağlantı testi
 app.get("/api/ciceksepeti/ping", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/sellers/${process.env.CICEKSEPETI_SELLER_ID}`;
-    const response = await axios.get(url, {
-      headers: CICEKSEPETI_AUTH_HEADER,
-      httpsAgent,
-    });
+    const url = `${CICEKSEPETI_BASE_URL}/products/v1/GetProducts`;
+    const r = await axios.post(
+      url,
+      {
+        SellerId: process.env.CICEKSEPETI_SELLER_ID,
+        Page: 1,
+        PageSize: 1,
+      },
+      { headers: CICEKSEPETI_AUTH_HEADER, httpsAgent }
+    );
 
-    res.json({
-      message: "✅ ÇiçekSepeti API bağlantısı başarılı!",
-      seller: response.data,
-    });
+    if (tryRateLimit(res, r.data)) return;
+
+    res.json({ message: "✅ ÇiçekSepeti API bağlantısı aktif", sample: r.data });
   } catch (err) {
-    const status = err.response?.status || 500;
-    if (status === 404) {
-      console.error("⚠️ Ping 404: Endpoint bulunamadı!");
-      return res.status(404).json({
-        error: "Ping endpoint bulunamadı (404)",
-        hint: "ÇiçekSepeti API Seller ID yanlış olabilir veya endpoint değişmiş.",
-      });
-    }
-    res.status(500).json({
-      error: "ÇiçekSepeti API'ye bağlanılamadı",
-      details: err.response?.data || err.message,
-    });
+    const payload = err.response?.data || err.message;
+    if (tryRateLimit(res, payload)) return;
+    res.status(500).json({ error: "Ping başarısız", details: payload });
   }
 });
 
-// ✅ Siparişleri getir
+// ✅ Siparişleri getir (Yeni endpoint)
 app.get("/api/ciceksepeti/orders", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/orders?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=1&pageSize=20`;
+    const url = `${CICEKSEPETI_BASE_URL}/orders/v1/GetOrders`;
+    const r = await axios.post(
+      url,
+      {
+        SellerId: process.env.CICEKSEPETI_SELLER_ID,
+        Page: Number(req.query.page || 1),
+        PageSize: Number(req.query.pageSize || 20),
+      },
+      { headers: CICEKSEPETI_AUTH_HEADER, httpsAgent }
+    );
 
+    if (tryRateLimit(res, r.data)) return;
 
-    const response = await axios.get(url, {
-      headers: CICEKSEPETI_AUTH_HEADER,
-      httpsAgent,
-    });
-
-    if (response.data?.Message?.includes("Limit aşımı")) {
-      console.warn("⚠️ Rate Limit Aşıldı - 10 dakika beklenmeli");
-      return res.status(429).json({
-        error: "Limit aşımı! Aynı isteği 10 dakikada bir atabilirsiniz.",
-        retryAfter: "10 dakika",
-      });
-    }
-
-    const orders =
-      response.data?.data?.map((o) => ({
-        orderNumber: o.orderNumber,
-        customerName: o.customerName,
-        totalAmount: o.totalAmount,
-        orderDate: o.orderDate,
-        status: o.status,
-      })) || [];
+    // beklenen tipik şema: { Data: { Items: [...] } }
+    const items = r.data?.Data?.Items || r.data?.data || r.data?.items || [];
+    const orders = items.map((o) => ({
+      orderNumber: o.OrderNumber ?? o.orderNumber,
+      customerName: o.CustomerName ?? o.customerName,
+      totalAmount: o.TotalAmount ?? o.totalAmount,
+      orderDate: o.OrderDate ?? o.orderDate,
+      status: o.Status ?? o.status,
+    }));
 
     res.json(orders);
   } catch (err) {
+    const payload = err.response?.data || err.message;
+    if (tryRateLimit(res, payload)) return;
     const status = err.response?.status || 500;
     if (status === 404) {
-      console.error("⚠️ Orders 404: endpoint bulunamadı");
       return res.status(404).json({ error: "Orders endpoint bulunamadı (404)" });
     }
-    res.status(500).json({
-      error: "Siparişler alınamadı",
-      details: err.response?.data || err.message,
-    });
+    res.status(500).json({ error: "ÇiçekSepeti siparişleri alınamadı", details: payload });
   }
 });
 
-// ✅ Ürünleri getir
+// ✅ Ürünleri getir (Yeni endpoint)
 app.get("/api/ciceksepeti/products", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/products?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=1&pageSize=50`;
+    const url = `${CICEKSEPETI_BASE_URL}/products/v1/GetProducts`;
+    const r = await axios.post(
+      url,
+      {
+        SellerId: process.env.CICEKSEPETI_SELLER_ID,
+        Page: Number(req.query.page || 1),
+        PageSize: Number(req.query.pageSize || 50),
+      },
+      { headers: CICEKSEPETI_AUTH_HEADER, httpsAgent }
+    );
 
+    if (tryRateLimit(res, r.data)) return;
 
-    const response = await axios.get(url, {
-      headers: CICEKSEPETI_AUTH_HEADER,
-      httpsAgent,
-    });
-
-    if (response.data?.Message?.includes("Limit aşımı")) {
-      console.warn("⚠️ Rate Limit Aşıldı - 10 dakika beklenmeli");
-      return res.status(429).json({
-        error: "Limit aşımı! Aynı isteği 10 dakikada bir atabilirsiniz.",
-        retryAfter: "10 dakika",
-      });
-    }
-
+    const items = r.data?.Data?.Items || r.data?.data || r.data?.items || [];
     const products =
-      response.data?.data?.map((p) => ({
-        id: p.productId,
-        name: p.productName,
-        price: p.price,
-        stock: p.stockQuantity,
-        category: p.categoryName,
-        barcode: p.barcode,
+      items.map((p) => ({
+        id: p.ProductId ?? p.productId ?? p.Id,
+        name: p.ProductName ?? p.productName ?? p.Name,
+        price: p.Price ?? p.price,
+        stock: p.StockQuantity ?? p.stockQuantity,
+        category: p.CategoryName ?? p.categoryName,
+        barcode: p.Barcode ?? p.barcode,
       })) || [];
 
     res.json(products);
   } catch (err) {
+    const payload = err.response?.data || err.message;
+    if (tryRateLimit(res, payload)) return;
     const status = err.response?.status || 500;
     if (status === 404) {
-      console.error("⚠️ Products 404: endpoint bulunamadı");
       return res.status(404).json({ error: "Products endpoint bulunamadı (404)" });
     }
-    res.status(500).json({
-      error: "Ürünler alınamadı",
-      details: err.response?.data || err.message,
-    });
+    res.status(500).json({ error: "ÇiçekSepeti ürünleri alınamadı", details: payload });
   }
 });
 
-
-
-
-
-// ---------- AUTH HEADERS ----------
+/* ===========================
+   🛒 TRENDYOL (mevcut hali)
+=========================== */
 const ORDER_AUTH_HEADER = {
   Authorization:
     "Basic " +
@@ -205,6 +217,7 @@ const WEBHOOK_AUTH_HEADER = {
   "User-Agent": "ShopTruckWebhook",
   Accept: "application/json",
 };
+
 const PRODUCT_AUTH_HEADER = {
   Authorization:
     "Basic " +
@@ -215,13 +228,13 @@ const PRODUCT_AUTH_HEADER = {
   Accept: "application/json",
 };
 
-// ---------- Helper: Order detayını Trendyol’dan çek ----------
+// (eski yardımcı fonksiyonun bırakıyorum — gerekirse düzenlersin)
 async function fetchOrderDetailsByNumber(orderNumber) {
   const DAY = 24 * 60 * 60 * 1000;
   const now = Date.now();
   const startDate = now - 15 * DAY;
 
-const url = `${TRENDYOL_BASE_URL}/sellers/${process.env.TRENDYOL_PRODUCT_SELLER_ID}/products`;
+  const url = `${TRENDYOL_BASE_URL}/sellers/${process.env.TRENDYOL_PRODUCT_SELLER_ID}/products`;
 
   try {
     const primary = await axios.get(url, {
@@ -240,12 +253,12 @@ const url = `${TRENDYOL_BASE_URL}/sellers/${process.env.TRENDYOL_PRODUCT_SELLER_
   return content.find((o) => String(o.orderNumber) === String(orderNumber)) || null;
 }
 
-// ---------- Root ----------
+/* ---------- Root ---------- */
 app.get("/", (req, res) => {
   res.send("✅ ShopTruck Backend Aktif (Firebase + Webhook) 🚀");
 });
 
-// ---------- Orders ----------
+/* ---------- Orders ---------- */
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     const DAY = 24 * 60 * 60 * 1000;
@@ -260,16 +273,16 @@ app.get("/api/trendyol/orders", async (req, res) => {
       }
     );
 
-   const data =
-  response.data?.content?.map((o) => ({
-    orderNumber: o.orderNumber,
-    customerFirstName: o.customerFirstName,
-    customerLastName: o.customerLastName,
-    grossAmount: o.grossAmount,
-    productName: o.lines?.[0]?.productName || "",
-    status: o.status,
-    orderDate: o.orderDate,
-  })) || [];
+    const data =
+      response.data?.content?.map((o) => ({
+        orderNumber: o.orderNumber,
+        customerFirstName: o.customerFirstName,
+        customerLastName: o.customerLastName,
+        grossAmount: o.grossAmount,
+        productName: o.lines?.[0]?.productName || "",
+        status: o.status,
+        orderDate: o.orderDate,
+      })) || [];
 
     res.json(data);
   } catch (err) {
@@ -278,14 +291,12 @@ app.get("/api/trendyol/orders", async (req, res) => {
   }
 });
 
-// ---------- Vendor Info ----------
+/* ---------- Vendor Info ---------- */
 app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   try {
-    // ✅ Yeni endpoint: supplier-addresses
-const url = `https://api.trendyol.com/integration/sellers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
+    const url = `https://api.trendyol.com/integration/sellers/${process.env.TRENDYOL_VENDOR_SELLER_ID}/addresses`;
     const r = await axios.get(url, { headers: VENDOR_AUTH_HEADER });
 
-    // Cloudflare HTML dönerse JSON parse hata vermesin
     if (typeof r.data !== "object" || r.data.includes?.("<html")) {
       console.warn("⚠️ Trendyol Vendor API HTML döndürdü (Cloudflare).");
       return res.json({
@@ -298,22 +309,23 @@ const url = `https://api.trendyol.com/integration/sellers/${process.env.TRENDYOL
       console.warn("⚠️ Vendor addresses boş döndü.");
       return res.json({ addresses: [], message: "Boş sonuç döndü" });
     }
-if (typeof r.data === "string" && r.data.includes("<html")) {
-  console.warn("⚠️ Trendyol HTML döndürdü (Cloudflare Engeli)");
-  return res.json({ addresses: [], message: "Trendyol engeli (HTML döndü)" });
-}
+
+    if (typeof r.data === "string" && r.data.includes("<html")) {
+      console.warn("⚠️ Trendyol HTML döndürdü (Cloudflare Engeli)");
+      return res.json({ addresses: [], message: "Trendyol engeli (HTML döndü)" });
+    }
     res.json(r.data);
   } catch (err) {
     console.error("🛑 Vendor API Error:", err.response?.data || err.message);
-   res.status(200).json({
-  addresses: [],
-  message: "Trendyol Vendor API şu anda erişilemiyor (Cloudflare engeli olabilir).",
-  error: String(err.response?.data || err.message).substring(0, 500),
-});
+    res.status(200).json({
+      addresses: [],
+      message: "Trendyol Vendor API şu anda erişilemiyor (Cloudflare engeli olabilir).",
+      error: String(err.response?.data || err.message).substring(0, 500),
+    });
   }
 });
 
-// ---------- Webhook ----------
+/* ---------- Webhook ---------- */
 app.post("/api/trendyol/webhook", async (req, res) => {
   try {
     const payload = req.body || {};
@@ -353,7 +365,9 @@ app.post("/api/trendyol/webhook", async (req, res) => {
     if (db) await db.collection("WebhookLogs").add(doc);
 
     const title = "📦 Yeni Trendyol Siparişi";
-    const body = `#${orderNumber || "N/A"}\n👤 ${doc.customer || "Bilinmiyor"}\n🛍️ ${doc.productName || "-"}\n💰 ${doc.grossAmount || 0}₺\nDurum: ${doc.status || "-"}`;
+    const body = `#${orderNumber || "N/A"}\n👤 ${doc.customer || "Bilinmiyor"}\n🛍️ ${
+      doc.productName || "-"
+    }\n💰 ${doc.grossAmount || 0}₺\nDurum: ${doc.status || "-"}`;
 
     if (admin.apps.length)
       await admin.messaging().send({
@@ -393,7 +407,7 @@ app.post("/api/trendyol/webhook", async (req, res) => {
   }
 });
 
-// ---------- Webhook Status ----------
+/* ---------- Webhook Status ---------- */
 app.get("/api/trendyol/webhook/status", async (req, res) => {
   try {
     const r = await axios.get(
@@ -406,25 +420,15 @@ app.get("/api/trendyol/webhook/status", async (req, res) => {
     res.status(500).json({ error: "Webhook status fetch failed" });
   }
 });
-// ---------- Products ----------
-// ---------- Products ----------
-// ---------- Products ----------
-// ---------- Products ----------
+
+/* ---------- Products ---------- */
 app.get("/api/trendyol/products", async (req, res) => {
   try {
     const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_PRODUCT_SELLER_ID}/products`;
     console.log("🟢 Trendyol ürün isteği gönderiliyor:", url);
 
     const response = await axios.get(url, {
-      headers: {
-        Authorization:
-          "Basic " +
-          Buffer.from(
-            `${process.env.TRENDYOL_PRODUCT_API_KEY}:${process.env.TRENDYOL_PRODUCT_API_SECRET}`
-          ).toString("base64"),
-        "User-Agent": "ShopTruckProduct",
-        Accept: "application/json",
-      },
+      headers: PRODUCT_AUTH_HEADER,
       params: { page: 0, size: 100 },
       httpsAgent,
     });
@@ -464,10 +468,7 @@ app.get("/api/trendyol/products", async (req, res) => {
   }
 });
 
-
-
-
-// ---------- SERVER ----------
+/* ---------- SERVER ---------- */
 app.listen(PORT, () => {
   console.log(`🚀 Backend aktif: http://localhost:${PORT}`);
 });
