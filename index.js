@@ -108,7 +108,6 @@ app.get("/api/trendyol/products", async (req, res) => {
 
 /* ---------- Sipariş Listesi ---------- */
 app.get("/api/trendyol/orders", async (req, res) => {/* ---------- Sipariş Listesi (Son 15 Gün) ---------- */
-app.get("/api/trendyol/orders", async (req, res) => {
   try {
     const now = new Date();
     const fifteenDaysAgo = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
