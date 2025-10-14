@@ -43,6 +43,77 @@ const mailer = nodemailer.createTransport({
     pass: process.env.MAIL_PASS,
   },
 });
+// =============================
+// 🌸 ÇİÇEKSEPETİ ENTEGRASYONU
+// =============================
+const CICEKSEPETI_BASE_URL = process.env.CICEKSEPETI_BASE_URL;
+const CICEKSEPETI_AUTH_HEADER = {
+  "x-api-key": process.env.CICEKSEPETI_API_KEY,
+  "Content-Type": "application/json",
+  Accept: "application/json",
+  "User-Agent": "ShopTruckCicekSepeti",
+};
+
+// ✅ Test bağlantısı
+app.get("/api/ciceksepeti/ping", async (req, res) => {
+  try {
+    const testUrl = `${CICEKSEPETI_BASE_URL}/orders?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=0&pageSize=1`;
+    const response = await axios.get(testUrl, { headers: CICEKSEPETI_AUTH_HEADER });
+    res.json({
+      message: "✅ ÇiçekSepeti API bağlantısı başarılı!",
+      data: response.data,
+    });
+  } catch (err) {
+    console.error("🛑 ÇiçekSepeti Ping Hatası:", err.response?.data || err.message);
+    res.status(500).json({
+      error: "ÇiçekSepeti API'ye bağlanılamadı",
+      details: err.response?.data || err.message,
+    });
+  }
+});
+
+// ✅ Siparişleri getir
+app.get("/api/ciceksepeti/orders", async (req, res) => {
+  try {
+    const url = `${CICEKSEPETI_BASE_URL}/orders?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=0&pageSize=50`;
+    const response = await axios.get(url, { headers: CICEKSEPETI_AUTH_HEADER });
+
+    const orders = response.data?.data?.map((o) => ({
+      orderNumber: o.orderNumber,
+      customerName: o.customerName,
+      totalAmount: o.totalAmount,
+      orderDate: o.orderDate,
+      status: o.status,
+    })) || [];
+
+    res.json(orders);
+  } catch (err) {
+    console.error("🛑 ÇiçekSepeti Orders Error:", err.response?.data || err.message);
+    res.status(500).json({ error: "Siparişler alınamadı" });
+  }
+});
+
+// ✅ Ürünleri getir
+app.get("/api/ciceksepeti/products", async (req, res) => {
+  try {
+    const url = `${CICEKSEPETI_BASE_URL}/products?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=0&pageSize=100`;
+    const response = await axios.get(url, { headers: CICEKSEPETI_AUTH_HEADER });
+
+    const products = response.data?.data?.map((p) => ({
+      id: p.productId,
+      name: p.productName,
+      price: p.price,
+      stock: p.stockQuantity,
+      category: p.categoryName,
+      barcode: p.barcode,
+    })) || [];
+
+    res.json(products);
+  } catch (err) {
+    console.error("🛑 ÇiçekSepeti Products Error:", err.response?.data || err.message);
+    res.status(500).json({ error: "Ürünler alınamadı" });
+  }
+});
 
 // ---------- AUTH HEADERS ----------
 const ORDER_AUTH_HEADER = {
