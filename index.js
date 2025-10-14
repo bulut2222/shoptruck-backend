@@ -14,9 +14,7 @@ app.use(express.urlencoded({ extended: true }));
 const PORT = process.env.PORT || 8080;
 const TRENDYOL_BASE_URL = "https://api.trendyol.com/sapigw";
 
-/* ===========================
-   🔐 Firebase Admin
-=========================== */
+/* ============ 🔐 Firebase Admin ============ */
 try {
   const key = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
   if (!admin.apps.length) {
@@ -35,9 +33,7 @@ try {
 
 const db = admin.apps.length ? admin.firestore() : null;
 
-/* ===========================
-   ✉️ Mail (SMTP)
-=========================== */
+/* ============ ✉️ Mail (SMTP) ============ */
 const mailer = nodemailer.createTransport({
   host: process.env.MAIL_HOST,
   port: Number(process.env.MAIL_PORT || 465),
@@ -48,16 +44,14 @@ const mailer = nodemailer.createTransport({
   },
 });
 
-/* ===========================
-   🛒 Trendyol Auth
-=========================== */
+/* ============ 🛒 Trendyol Auth ============ */
 const AUTH_HEADER = {
   Authorization:
     "Basic " +
     Buffer.from(
       `${process.env.TRENDYOL_API_KEY}:${process.env.TRENDYOL_API_SECRET}`
     ).toString("base64"),
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "User-Agent": "Mozilla/5.0",
   Accept: "application/json",
   Referer: "https://partner.trendyol.com",
   Origin: "https://partner.trendyol.com",
@@ -66,75 +60,8 @@ const AUTH_HEADER = {
 
 /* ---------- Root ---------- */
 app.get("/", (req, res) => {
-  res.send("✅ ShopTruck Backend Aktif (Trendyol Entegrasyonu + Satıcı Adresleri) 🚀");
+  res.send("✅ ShopTruck Backend Aktif (Sadece Sipariş + Satıcı Bilgisi) 🚀");
 });
-
-/* ---------- Ürün Listesi ---------- */
-/* ---------- Ürün Listesi (Cloudflare Bypass’lı) ---------- */
-app.get("/api/trendyol/products", async (req, res) => {
-  try {
-    const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/products`;
-    console.log("🟢 Trendyol ürün isteği:", url);
-
-    // 🔹 Gerçek tarayıcıya benzeyen header seti
-    const browserHeaders = {
-      ...AUTH_HEADER,
-      "Accept-Language": "tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7",
-      "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-      "Sec-Ch-Ua-Mobile": "?0",
-      "Sec-Ch-Ua-Platform": '"Windows"',
-      Referer: "https://partner.trendyol.com/",
-      Origin: "https://partner.trendyol.com",
-      Connection: "keep-alive",
-    };
-
-    // 🔹 Rastgele küçük gecikme (Cloudflare bot korumasını atlatır)
-    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-    await delay(500 + Math.random() * 500);
-
-    const r = await axios.get(url, {
-      headers: browserHeaders,
-      params: { page: 0, size: 100 },
-      httpsAgent,
-      timeout: 15000, // güvenlik için timeout
-    });
-
-    if (!r.data || typeof r.data !== "object") {
-      console.warn("⚠️ Trendyol Products API HTML döndürdü (Cloudflare Engeli)");
-      return res.status(200).json({
-        message: "⚠️ Trendyol Products API Cloudflare engeline takıldı",
-        data: [],
-      });
-    }
-
-    const products =
-      r.data?.content?.map((p) => ({
-        id: p.id,
-        name: p.productName,
-        stock: p.quantity,
-        barcode: p.barcode,
-        category: p.category?.name,
-        brand: p.brand?.name,
-        price: p.listPrice?.price,
-        discountedPrice: p.salePrice?.price,
-        image: p.images?.[0]?.url || "",
-        approved: p.approved,
-      })) || [];
-
-    res.json({
-      message: "✅ Trendyol ürün listesi alındı (Cloudflare Bypass)",
-      count: products.length,
-      data: products,
-    });
-  } catch (err) {
-    console.error("🛑 Trendyol ürün hatası:", err.response?.data || err.message);
-    res.status(500).json({
-      error: "Ürün listesi alınamadı",
-      details: err.response?.data || err.message,
-    });
-  }
-});
-
 
 /* ---------- Sipariş Listesi (Son 15 Gün) ---------- */
 app.get("/api/trendyol/orders", async (req, res) => {
@@ -143,9 +70,6 @@ app.get("/api/trendyol/orders", async (req, res) => {
     const fifteenDaysAgo = now - 15 * 24 * 60 * 60 * 1000;
 
     const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`;
-    console.log("🟢 Trendyol sipariş isteği:", url);
-    console.log(`📅 Aralık: ${fifteenDaysAgo} → ${now}`);
-
     const r = await axios.get(url, {
       headers: AUTH_HEADER,
       params: {
@@ -188,20 +112,9 @@ app.get("/api/trendyol/orders", async (req, res) => {
 app.get("/api/trendyol/vendor/addresses", async (req, res) => {
   try {
     const url = `https://api.trendyol.com/integration/sellers/${process.env.TRENDYOL_SELLER_ID}/addresses`;
-    console.log("🏬 Trendyol satıcı adres isteği:", url);
-
     const r = await axios.get(url, { headers: AUTH_HEADER, httpsAgent });
 
-    if (typeof r.data !== "object" || (typeof r.data === "string" && r.data.includes("<html"))) {
-      console.warn("⚠️ Trendyol Vendor API HTML döndürdü (Cloudflare Engeli)");
-      return res.status(200).json({
-        message: "⚠️ Trendyol Vendor API HTML döndürdü (Cloudflare engeli olabilir)",
-        addresses: [],
-      });
-    }
-
-    if (!r.data || Object.keys(r.data).length === 0) {
-      console.warn("⚠️ Vendor addresses boş döndü");
+    if (!r.data || typeof r.data !== "object" || Object.keys(r.data).length === 0) {
       return res.status(200).json({
         message: "⚠️ Satıcı adres bilgisi bulunamadı",
         addresses: [],
