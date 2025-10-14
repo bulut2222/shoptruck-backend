@@ -36,7 +36,7 @@ try {
 const db = admin.apps.length ? admin.firestore() : null;
 
 /* ===========================
-   ✉️ Mail
+   ✉️ Mail (SMTP)
 =========================== */
 const mailer = nodemailer.createTransport({
   host: process.env.MAIL_HOST,
@@ -49,7 +49,7 @@ const mailer = nodemailer.createTransport({
 });
 
 /* ===========================
-   🛒 Trendyol Genel Auth
+   🛒 Trendyol Auth
 =========================== */
 const AUTH_HEADER = {
   Authorization:
@@ -63,7 +63,7 @@ const AUTH_HEADER = {
 
 /* ---------- Root ---------- */
 app.get("/", (req, res) => {
-  res.send("✅ ShopTruck Backend Aktif (Tek Anahtar Trendyol Entegrasyonu) 🚀");
+  res.send("✅ ShopTruck Backend Aktif (Trendyol Entegrasyonu + Satıcı Adresleri) 🚀");
 });
 
 /* ---------- Ürün Listesi ---------- */
@@ -106,59 +106,90 @@ app.get("/api/trendyol/products", async (req, res) => {
   }
 });
 
-/* ---------- Sipariş Listesi ---------- */
 /* ---------- Sipariş Listesi (Son 15 Gün) ---------- */
-/* ---------- Sipariş Listesi (Son 100 Gün - Yeni Siparişler Üstte) ---------- */
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     const now = Date.now();
-    const hundredDaysAgo = now - 15 * 24 * 60 * 60 * 1000;
+    const fifteenDaysAgo = now - 15 * 24 * 60 * 60 * 1000;
 
     const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`;
-    console.log("🟢 Trendyol sipariş isteği (15 gün - TÜM DURUMLAR):", url);
-    console.log(`📅 Aralık: ${hundredDaysAgo} → ${now}`);
+    console.log("🟢 Trendyol sipariş isteği:", url);
+    console.log(`📅 Aralık: ${fifteenDaysAgo} → ${now}`);
 
     const r = await axios.get(url, {
       headers: AUTH_HEADER,
       params: {
-        startDate: hundredDaysAgo,
+        startDate: fifteenDaysAgo,
         endDate: now,
         orderByField: "CreatedDate",
         orderByDirection: "DESC",
         page: 0,
         size: 200,
-        // ⚠️ status parametresi gönderilmiyor (tüm durumlar gelsin)
       },
       httpsAgent,
     });
 
-    let orders =
-      r.data?.content
-        ?.map((o) => ({
-          id: o.id,
-          customer: `${o.customerFirstName || ""} ${o.customerLastName || ""}`.trim(),
-          totalPrice: o.totalPrice,
-          orderDate: o.orderDate,
-          status: o.status,
-          cargoTrackingNumber: o.cargoTrackingNumber,
-          city: o.shipmentAddress?.city,
-        }))
-        .sort((a, b) => b.orderDate - a.orderDate) || [];
+    const orders =
+      r.data?.content?.map((o) => ({
+        id: o.id,
+        customer: `${o.customerFirstName || ""} ${o.customerLastName || ""}`.trim(),
+        totalPrice: o.totalPrice,
+        orderDate: o.orderDate,
+        status: o.status,
+        cargoTrackingNumber: o.cargoTrackingNumber,
+        city: o.shipmentAddress?.city,
+      })) || [];
 
     res.json({
-      message: "✅ Trendyol son 15 gün TÜM sipariş listesi (yeniden eskiye) alındı",
+      message: "✅ Trendyol son 15 gün sipariş listesi alındı",
       count: orders.length,
       data: orders,
     });
   } catch (err) {
-    console.error("🛑 Trendyol sipariş hatası:", err.message);
-    res.status(500).json({ error: "Trendyol siparişleri alınamadı", details: err.message });
+    console.error("🛑 Trendyol sipariş hatası:", err.response?.data || err.message);
+    res.status(500).json({
+      error: "Sipariş listesi alınamadı",
+      details: err.response?.data || err.message,
+    });
   }
 });
 
+/* ---------- Satıcı (Vendor) Adresleri ---------- */
+app.get("/api/trendyol/vendor/addresses", async (req, res) => {
+  try {
+    const url = `https://api.trendyol.com/integration/sellers/${process.env.TRENDYOL_SELLER_ID}/addresses`;
+    console.log("🏬 Trendyol satıcı adres isteği:", url);
 
+    const r = await axios.get(url, { headers: AUTH_HEADER, httpsAgent });
 
+    if (typeof r.data !== "object" || (typeof r.data === "string" && r.data.includes("<html"))) {
+      console.warn("⚠️ Trendyol Vendor API HTML döndürdü (Cloudflare Engeli)");
+      return res.status(200).json({
+        message: "⚠️ Trendyol Vendor API HTML döndürdü (Cloudflare engeli olabilir)",
+        addresses: [],
+      });
+    }
 
+    if (!r.data || Object.keys(r.data).length === 0) {
+      console.warn("⚠️ Vendor addresses boş döndü");
+      return res.status(200).json({
+        message: "⚠️ Satıcı adres bilgisi bulunamadı",
+        addresses: [],
+      });
+    }
+
+    res.json({
+      message: "✅ Trendyol satıcı adres bilgileri başarıyla alındı",
+      addresses: r.data,
+    });
+  } catch (err) {
+    console.error("🛑 Vendor API hatası:", err.response?.data || err.message);
+    res.status(500).json({
+      error: "Satıcı adres bilgileri alınamadı",
+      details: err.response?.data || err.message,
+    });
+  }
+});
 
 /* ---------- Sunucu ---------- */
 app.listen(PORT, () => {
