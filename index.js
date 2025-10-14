@@ -106,10 +106,6 @@ app.get("/api/trendyol/products", async (req, res) => {
   }
 });
 
-/* ---------- Sunucu ---------- */
-app.listen(PORT, () => {
-  console.log(`🚀 Backend aktif: http://localhost:${PORT}`);
-});
 /* ---------- Sipariş Listesi ---------- */
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
@@ -145,4 +141,9 @@ app.get("/api/trendyol/orders", async (req, res) => {
       details: err.response?.data || err.message,
     });
   }
+});
+
+/* ---------- Sunucu ---------- */
+app.listen(PORT, () => {
+  console.log(`🚀 Backend aktif: http://localhost:${PORT}`);
 });
