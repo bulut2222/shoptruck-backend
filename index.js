@@ -57,8 +57,11 @@ const AUTH_HEADER = {
     Buffer.from(
       `${process.env.TRENDYOL_API_KEY}:${process.env.TRENDYOL_API_SECRET}`
     ).toString("base64"),
-  "User-Agent": "ShopTruckUnified",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
   Accept: "application/json",
+  Referer: "https://partner.trendyol.com",
+  Origin: "https://partner.trendyol.com",
+  Connection: "keep-alive",
 };
 
 /* ---------- Root ---------- */
