@@ -112,10 +112,10 @@ app.get("/api/trendyol/products", async (req, res) => {
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     const now = Date.now();
-    const hundredDaysAgo = now - 100 * 24 * 60 * 60 * 1000;
+    const hundredDaysAgo = now - 15 * 24 * 60 * 60 * 1000;
 
     const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`;
-    console.log("🟢 Trendyol sipariş isteği (100 gün - TÜM DURUMLAR):", url);
+    console.log("🟢 Trendyol sipariş isteği (15 gün - TÜM DURUMLAR):", url);
     console.log(`📅 Aralık: ${hundredDaysAgo} → ${now}`);
 
     const r = await axios.get(url, {
@@ -146,7 +146,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
         .sort((a, b) => b.orderDate - a.orderDate) || [];
 
     res.json({
-      message: "✅ Trendyol son 100 gün TÜM sipariş listesi (yeniden eskiye) alındı",
+      message: "✅ Trendyol son 15 gün TÜM sipariş listesi (yeniden eskiye) alındı",
       count: orders.length,
       data: orders,
     });
