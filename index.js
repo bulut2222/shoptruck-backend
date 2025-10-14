@@ -87,7 +87,7 @@ function tryRateLimit(res, payload) {
 // ✅ Ping: 1 ürün çekerek basit bağlantı testi
 app.get("/api/ciceksepeti/ping", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/products/v1/GetProducts`;
+    const url = `${CICEKSEPETI_BASE_URL}/merchant/account`;
     const r = await axios.post(
       url,
       {
@@ -111,7 +111,8 @@ app.get("/api/ciceksepeti/ping", async (req, res) => {
 // ✅ Siparişleri getir (Yeni endpoint)
 app.get("/api/ciceksepeti/orders", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/orders/v1/GetOrders`;
+    const url = `${CICEKSEPETI_BASE_URL}/merchant/orders?page=1&pageSize=20`;
+
     const r = await axios.post(
       url,
       {
@@ -149,7 +150,7 @@ app.get("/api/ciceksepeti/orders", async (req, res) => {
 // ✅ Ürünleri getir (Yeni endpoint)
 app.get("/api/ciceksepeti/products", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/products/v1/GetProducts`;
+    const url = `${CICEKSEPETI_BASE_URL}/merchant/products?page=1&pageSize=50`;
     const r = await axios.post(
       url,
       {
