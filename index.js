@@ -108,28 +108,31 @@ app.get("/api/trendyol/products", async (req, res) => {
 
 /* ---------- Sipariş Listesi ---------- */
 /* ---------- Sipariş Listesi (Son 15 Gün) ---------- */
+/* ---------- Sipariş Listesi (Son 100 Gün - Yeni Siparişler Üstte) ---------- */
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     const now = Date.now(); // şu an
-    const fifteenDaysAgo = now - 100 * 24 * 60 * 60 * 1000; // 15 gün önce
+    const hundredDaysAgo = now - 100 * 24 * 60 * 60 * 1000; // 100 gün önce
 
     const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`;
-    console.log("🟢 Trendyol sipariş isteği (15 günlük):", url);
-    console.log(`📅 Aralık: ${fifteenDaysAgo} → ${now}`);
+    console.log("🟢 Trendyol sipariş isteği (100 günlük):", url);
+    console.log(`📅 Aralık: ${hundredDaysAgo} → ${now}`);
 
     const r = await axios.get(url, {
       headers: AUTH_HEADER,
       params: {
-        startDate: fifteenDaysAgo,
+        startDate: hundredDaysAgo,
         endDate: now,
-        orderByField: "PackageLastModifiedDate",
+        orderByField: "OrderDate",
+        orderByDirection: "DESC", // ⬅️ en yeni sipariş en üstte
         page: 0,
         size: 100,
       },
       httpsAgent,
     });
 
-    const orders =
+    // Gelen siparişleri sıralı döndürüyoruz
+    let orders =
       r.data?.content?.map((o) => ({
         id: o.id,
         customer: `${o.customerFirstName || ""} ${o.customerLastName || ""}`.trim(),
@@ -140,8 +143,11 @@ app.get("/api/trendyol/orders", async (req, res) => {
         city: o.shipmentAddress?.city,
       })) || [];
 
+    // Ek güvenlik için client tarafında da tarihe göre sıralayalım
+    orders = orders.sort((a, b) => b.orderDate - a.orderDate);
+
     res.json({
-      message: "✅ Trendyol son 15 gün sipariş listesi alındı",
+      message: "✅ Trendyol son 100 gün sipariş listesi (yeniden eskiye) alındı",
       count: orders.length,
       data: orders,
     });
@@ -153,6 +159,7 @@ app.get("/api/trendyol/orders", async (req, res) => {
     });
   }
 });
+
 
 
 
