@@ -111,7 +111,7 @@ app.get("/api/trendyol/products", async (req, res) => {
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     const now = Date.now(); // şu an
-    const fifteenDaysAgo = now - 15 * 24 * 60 * 60 * 1000; // 15 gün önce
+    const fifteenDaysAgo = now - 50 * 24 * 60 * 60 * 1000; // 15 gün önce
 
     const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`;
     console.log("🟢 Trendyol sipariş isteği (15 günlük):", url);
