@@ -52,6 +52,9 @@ const mailer = nodemailer.createTransport({
    🌸 ÇİÇEKSEPETİ ENTEGRASYONU
    (Yeni POST endpoint’leri)
 =========================== */
+/* ===========================
+   🌸 ÇİÇEKSEPETİ ENTEGRASYONU
+=========================== */
 const CICEKSEPETI_BASE_URL =
   (process.env.CICEKSEPETI_BASE_URL || "https://apis.ciceksepeti.com/api/v1").replace(/\/+$/, "");
 
@@ -62,32 +65,10 @@ const CICEKSEPETI_AUTH_HEADER = {
   "User-Agent": "ShopTruckCicekSepeti",
 };
 
-// küçük yardımcı: rate limit mesajını sez ve 429 dön
-function tryRateLimit(res, payload) {
-  const txt =
-    (typeof payload === "string" && payload) ||
-    payload?.Message ||
-    payload?.message ||
-    payload?.error ||
-    "";
-
-  if (typeof txt === "string" && /limit|aşım|10\s*dakika/i.test(txt)) {
-    // kalan süreyi (saniye) yakalamaya çalış
-    const m = txt.match(/(\d+)\s*saniye/i);
-    const retrySec = m ? Number(m[1]) : 600;
-    return res.status(429).json({
-      error: "Limit aşımı! Aynı endpoint'e 10 dakikada 1 kez istek atabilirsiniz.",
-      retryAfterSeconds: retrySec,
-      details: txt,
-    });
-  }
-  return null;
-}
-
-// ✅ Ping: 1 ürün çekerek basit bağlantı testi
+// ✅ Ping testi
 app.get("/api/ciceksepeti/ping", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/health`; // test için mevcut endpoint
+    const url = `${CICEKSEPETI_BASE_URL}/health`;
     const r = await axios.get(url, { httpsAgent });
     res.json({ message: "✅ ÇiçekSepeti test bağlantısı aktif", data: r.data });
   } catch (err) {
@@ -97,6 +78,41 @@ app.get("/api/ciceksepeti/ping", async (req, res) => {
     });
   }
 });
+
+// ✅ Siparişleri getir
+app.get("/api/ciceksepeti/orders", async (req, res) => {
+  try {
+    const url = `${CICEKSEPETI_BASE_URL}/orders`;
+    const r = await axios.get(url, {
+      headers: { "x-api-key": process.env.CICEKSEPETI_API_KEY },
+      httpsAgent,
+    });
+    res.json({ message: "✅ Sipariş listesi alındı", data: r.data });
+  } catch (err) {
+    res.status(500).json({
+      error: "ÇiçekSepeti siparişleri alınamadı",
+      details: err.response?.data || err.message,
+    });
+  }
+});
+
+// ✅ Ürünleri getir
+app.get("/api/ciceksepeti/products", async (req, res) => {
+  try {
+    const url = `${CICEKSEPETI_BASE_URL}/products`;
+    const r = await axios.get(url, {
+      headers: { "x-api-key": process.env.CICEKSEPETI_API_KEY },
+      httpsAgent,
+    });
+    res.json({ message: "✅ Ürün listesi alındı", data: r.data });
+  } catch (err) {
+    res.status(500).json({
+      error: "ÇiçekSepeti ürünleri alınamadı",
+      details: err.response?.data || err.message,
+    });
+  }
+});
+
 
 // ✅ Siparişleri getir (Yeni endpoint)
 app.get("/api/ciceksepeti/orders", async (req, res) => {app.get("/api/ciceksepeti/orders", async (req, res) => {
