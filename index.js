@@ -1,11 +1,11 @@
 import express from "express";
 import axios from "axios";
 import https from "https";
-const agent = new https.Agent({ rejectUnauthorized: false });
+const httpsAgent = new https.Agent({ rejectUnauthorized: false });
 import dotenv from "dotenv";
 import admin from "firebase-admin";
 import nodemailer from "nodemailer";
-const httpsAgent = new https.Agent({ rejectUnauthorized: false }); 
+
 
 dotenv.config();
 const app = express();
