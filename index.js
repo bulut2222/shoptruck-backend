@@ -112,42 +112,6 @@ app.get("/api/ciceksepeti/products", async (req, res) => {
     });
   }
 });
-
-
-// ✅ Siparişleri getir (Yeni endpoint)
-app.get("/api/ciceksepeti/orders", async (req, res) => {app.get("/api/ciceksepeti/orders", async (req, res) => {
-  try {
-    const url = `${CICEKSEPETI_BASE_URL}/orders`;
-    const r = await axios.get(url, {
-      headers: { "x-api-key": process.env.CICEKSEPETI_API_KEY },
-      httpsAgent,
-    });
-    res.json({ message: "✅ Sipariş listesi alındı", data: r.data });
-  } catch (err) {
-    res.status(500).json({
-      error: "ÇiçekSepeti siparişleri alınamadı",
-      details: err.response?.data || err.message,
-    });
-  }
-});
-
-
-// ✅ Ürünleri getir (Yeni endpoint)
-app.get("/api/ciceksepeti/products", async (req, res) => {app.get("/api/ciceksepeti/products", async (req, res) => {
-  try {
-    const url = `${CICEKSEPETI_BASE_URL}/products`;
-    const r = await axios.get(url, {
-      headers: { "x-api-key": process.env.CICEKSEPETI_API_KEY },
-      httpsAgent,
-    });
-    res.json({ message: "✅ Ürün listesi alındı", data: r.data });
-  } catch (err) {
-    res.status(500).json({
-      error: "ÇiçekSepeti ürünleri alınamadı",
-      details: err.response?.data || err.message,
-    });
-  }
-});
 /*
 
 /* ===========================
