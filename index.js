@@ -46,7 +46,10 @@ const mailer = nodemailer.createTransport({
 // =============================
 // 🌸 ÇİÇEKSEPETİ ENTEGRASYONU
 // =============================
-const CICEKSEPETI_BASE_URL = process.env.CICEKSEPETI_BASE_URL;
+// =============================
+// 🌸 ÇİÇEKSEPETİ ENTEGRASYONU (GÜNCELLENMİŞ)
+// =============================
+const CICEKSEPETI_BASE_URL = "https://apis.ciceksepeti.com/api/v1";
 const CICEKSEPETI_AUTH_HEADER = {
   "x-api-key": process.env.CICEKSEPETI_API_KEY,
   "Content-Type": "application/json",
@@ -54,17 +57,17 @@ const CICEKSEPETI_AUTH_HEADER = {
   "User-Agent": "ShopTruckCicekSepeti",
 };
 
-// ✅ Test bağlantısı
+// ✅ Bağlantı testi
 app.get("/api/ciceksepeti/ping", async (req, res) => {
   try {
-    const testUrl = `${CICEKSEPETI_BASE_URL}/orders?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=0&pageSize=1`;
-    const response = await axios.get(testUrl, { headers: CICEKSEPETI_AUTH_HEADER });
+    const url = `${CICEKSEPETI_BASE_URL}/Sellers/${process.env.CICEKSEPETI_SELLER_ID}`;
+    const response = await axios.get(url, { headers: CICEKSEPETI_AUTH_HEADER });
     res.json({
       message: "✅ ÇiçekSepeti API bağlantısı başarılı!",
-      data: response.data,
+      sellerInfo: response.data,
     });
   } catch (err) {
-    console.error("🛑 ÇiçekSepeti Ping Hatası:", err.response?.data || err.message);
+    console.error("🛑 Ping Error:", err.response?.data || err.message);
     res.status(500).json({
       error: "ÇiçekSepeti API'ye bağlanılamadı",
       details: err.response?.data || err.message,
@@ -72,45 +75,43 @@ app.get("/api/ciceksepeti/ping", async (req, res) => {
   }
 });
 
-// ✅ Siparişleri getir
+// ✅ Sipariş Listesi
 app.get("/api/ciceksepeti/orders", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/orders?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=0&pageSize=50`;
+    const url = `${CICEKSEPETI_BASE_URL}/Orders?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=0&pageSize=50`;
     const response = await axios.get(url, { headers: CICEKSEPETI_AUTH_HEADER });
-
-    const orders = response.data?.data?.map((o) => ({
-      orderNumber: o.orderNumber,
-      customerName: o.customerName,
-      totalAmount: o.totalAmount,
-      orderDate: o.orderDate,
-      status: o.status,
-    })) || [];
-
+    const orders =
+      response.data?.data?.map((o) => ({
+        orderNumber: o.orderNumber,
+        customerName: o.customerName,
+        totalAmount: o.totalAmount,
+        orderDate: o.orderDate,
+        status: o.status,
+      })) || [];
     res.json(orders);
   } catch (err) {
-    console.error("🛑 ÇiçekSepeti Orders Error:", err.response?.data || err.message);
+    console.error("🛑 Orders Error:", err.response?.data || err.message);
     res.status(500).json({ error: "Siparişler alınamadı" });
   }
 });
 
-// ✅ Ürünleri getir
+// ✅ Ürün Listesi
 app.get("/api/ciceksepeti/products", async (req, res) => {
   try {
-    const url = `${CICEKSEPETI_BASE_URL}/products?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=0&pageSize=100`;
+    const url = `${CICEKSEPETI_BASE_URL}/Products?sellerId=${process.env.CICEKSEPETI_SELLER_ID}&page=0&pageSize=100`;
     const response = await axios.get(url, { headers: CICEKSEPETI_AUTH_HEADER });
-
-    const products = response.data?.data?.map((p) => ({
-      id: p.productId,
-      name: p.productName,
-      price: p.price,
-      stock: p.stockQuantity,
-      category: p.categoryName,
-      barcode: p.barcode,
-    })) || [];
-
+    const products =
+      response.data?.data?.map((p) => ({
+        id: p.productId,
+        name: p.productName,
+        price: p.price,
+        stock: p.stockQuantity,
+        category: p.categoryName,
+        barcode: p.barcode,
+      })) || [];
     res.json(products);
   } catch (err) {
-    console.error("🛑 ÇiçekSepeti Products Error:", err.response?.data || err.message);
+    console.error("🛑 Products Error:", err.response?.data || err.message);
     res.status(500).json({ error: "Ürünler alınamadı" });
   }
 });
