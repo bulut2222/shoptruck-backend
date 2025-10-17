@@ -143,12 +143,13 @@ app.post("/api/webhook", async (req, res) => {
       });
     }
 
-    await mailer.sendMail({
-      from: process.env.MAIL_FROM || process.env.MAIL_USER,
-      to: process.env.MAIL_TO || process.env.MAIL_USER,
-      subject: "📦 Yeni Trendyol Webhook Bildirimi",
-      html: `<h3>Yeni Webhook Alındı</h3><pre>${JSON.stringify(data, null, 2)}</pre>`,
-    });
+    // await mailer.sendMail({
+//   from: process.env.MAIL_FROM || process.env.MAIL_USER,
+//   to: process.env.MAIL_TO || process.env.MAIL_USER,
+//   subject: "📦 Yeni Trendyol Webhook Bildirimi",
+//   html: `<h3>Yeni Webhook Alındı</h3><pre>${JSON.stringify(data, null, 2)}</pre>`,
+// });
+
 
     res.json({ success: true, message: "Webhook başarıyla işlendi." });
   } catch (err) {
