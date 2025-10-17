@@ -130,7 +130,7 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
 });
 
 /* ---------- 🚀 Webhook (Firebase + Mail) ---------- */
-app.post("/api/trendyol/webhook", async (req, res) => {
+app.post("/api/webhook", async (req, res) => {
   try {
     const data = req.body || {};
 
