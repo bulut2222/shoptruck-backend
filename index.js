@@ -66,7 +66,7 @@ app.get("/", (req, res) => {
 });
 
 /* ---------- 📦 Sipariş Listesi (Son 15 Gün) ---------- */
-/* ---------- 📦 Sipariş Listesi (Son 15 Gün / Tüm Siparişler) ---------- */
+/* ---------- 📦 Sipariş Listesi (15 Günlük, Tüm Sayfalar Güvenli) ---------- */
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
     const now = Date.now();
@@ -74,9 +74,9 @@ app.get("/api/trendyol/orders", async (req, res) => {
 
     const allOrders = [];
     let page = 0;
-    let hasNext = true;
+    const maxPageLimit = 20; // En fazla 20 sayfa (20x200 = 4000 sipariş)
 
-    while (hasNext) {
+    while (page < maxPageLimit) {
       const url = `${TRENDYOL_BASE_URL}/suppliers/${process.env.TRENDYOL_SELLER_ID}/orders`;
 
       const response = await axios.get(url, {
@@ -88,7 +88,6 @@ app.get("/api/trendyol/orders", async (req, res) => {
           orderByDirection: "DESC",
           page,
           size: 200,
-          // status: "Created", // ❌ Bu satırı kaldırdık, tüm statüler gelecek
         },
         httpsAgent,
       });
@@ -108,7 +107,9 @@ app.get("/api/trendyol/orders", async (req, res) => {
         });
       }
 
-      hasNext = !response.data?.last;
+      const isLastPage = response.data?.last === true;
+      if (isLastPage || pageData.length === 0) break;
+
       page++;
     }
 
