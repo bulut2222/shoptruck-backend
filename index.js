@@ -69,7 +69,7 @@ app.get("/", (req, res) => {
 /* ---------- 📦 Sipariş Listesi (15 Günlük, Tüm Sayfalar Güvenli) ---------- */
 app.get("/api/trendyol/orders", async (req, res) => {
   try {
-    const now = Date.now();
+   const now = Date.now() + 3 * 60 * 60 * 1000; // 3 saat ileri
     const fifteenDaysAgo = now - 15 * 24 * 60 * 60 * 1000;
 
     const allOrders = [];
