@@ -82,17 +82,18 @@ app.get("/api/trendyol/orders", async (req, res) => {
       const response = await axios.get(url, {
         headers: AUTH_HEADER,
         params: {
-          startDate: fifteenDaysAgo,
-          endDate: now,
-          orderByField: "CreatedDate",
-          orderByDirection: "DESC",
-          page,
-          size: 200,
-        },
+  startDate: fifteenDaysAgo,
+  endDate: now,
+  orderByField: "OrderDate", // <-- deneysel
+  orderByDirection: "DESC",
+  page,
+  size: 200,
+}},
         httpsAgent,
       });
 
       const pageData = response.data?.content || [];
+console.log("📦 Sayfa", page, "- Sipariş sayısı:", pageData.length);
 
       for (const o of pageData) {
         allOrders.push({
