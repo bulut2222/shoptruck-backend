@@ -1,3 +1,4 @@
+// index.js
 import express from "express";
 import axios from "axios";
 import https from "https";
@@ -61,7 +62,7 @@ const AUTH_HEADER = {
 
 /* ---------- Root ---------- */
 app.get("/", (req, res) => {
-  res.send("✅ ShopTruck Backend Aktif (Sipariş + Satıcı Bilgisi + Webhook) 🚀");
+  res.send("✅ ShopTruck Backend Aktif (Sipariş + Satıcı Bilgisi) 🚀");
 });
 
 /* ---------- 📦 Sipariş Listesi (Son 15 Gün) ---------- */
@@ -97,7 +98,6 @@ app.get("/api/trendyol/orders", async (req, res) => {
         orderDate: o.orderDate || Date.now(),
       })) || [];
 
-    // 🔹 Android uygulaması doğrudan List<Order> beklediği için sadece dizi dönüyoruz
     res.json(orders);
   } catch (err) {
     console.error("🛑 Trendyol sipariş hatası:", err.response?.data || err.message);
@@ -118,7 +118,6 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
       return res.json([]);
     }
 
-    // Android uyumlu sade dönüş
     res.json(r.data);
   } catch (err) {
     console.error("🛑 Vendor API hatası:", err.response?.data || err.message);
@@ -126,35 +125,6 @@ app.get("/api/trendyol/vendor/addresses", async (req, res) => {
       error: "Satıcı adres bilgileri alınamadı",
       details: err.response?.data || err.message,
     });
-  }
-});
-
-/* ---------- 🚀 Webhook (Firebase + Mail) ---------- */
-app.post("/api/webhook", async (req, res) => {
-  try {
-    const data = req.body || {};
-
-    console.log("📩 Yeni Webhook alındı:", JSON.stringify(data, null, 2));
-
-    if (db) {
-      await db.collection("WebhookLogs").add({
-        data,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-    }
-
-    // await mailer.sendMail({
-//   from: process.env.MAIL_FROM || process.env.MAIL_USER,
-//   to: process.env.MAIL_TO || process.env.MAIL_USER,
-//   subject: "📦 Yeni Trendyol Webhook Bildirimi",
-//   html: `<h3>Yeni Webhook Alındı</h3><pre>${JSON.stringify(data, null, 2)}</pre>`,
-// });
-
-
-    res.json({ success: true, message: "Webhook başarıyla işlendi." });
-  } catch (err) {
-    console.error("🛑 Webhook Hatası:", err.message);
-    res.status(500).json({ error: "Webhook işlenemedi", details: err.message });
   }
 });
 
